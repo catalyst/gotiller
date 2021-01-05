@@ -1,0 +1,84 @@
+package main
+
+import (
+    /*
+    "io"
+    "path/filepath"
+    "text/template"
+    */
+    "fmt"
+    "os"
+
+    "github.com/catalyst/gotiller"
+    "github.com/spf13/pflag"
+)
+
+const ConfigEtcPath = "/etc/gotiller"
+
+func main() {
+    dir_p := pflag.StringP("config-dir",  "d", "", fmt.Sprintf("gotiller config dir (default . then %s)", ConfigEtcPath))
+    target_base_dir_p := pflag.StringP("output-base-dir", "o", "", "root dir for generate files (usually not needed)")
+    env_p := pflag.StringP("environment", "e", "", "environment")
+    verbose_p := pflag.BoolP("verbose", "v", "", "verbose")
+    pflag.Usage = func() {
+        fmt.Println("Usage:")
+        fmt.Println(os.Args[0] + " [--config-dir|-d path] [--output-base-dir|o path] [--verbose|v] --environment|-e environment")
+        pflag.PrintDefaults()
+        fmt.Println()
+    }
+    pflag.Parse()
+
+    defer func() {
+        if r := recover(); r != nil {
+            pflag.Usage()
+            panic(r)
+        }
+    }()
+
+    if *dir_p == "" {
+        if _, err := os.Stat(gotiller.ConfigFname); err == nil {
+            *dir_p = "."
+        } else {
+            *dir_p = ConfigEtcPath
+        }
+    }
+
+    gotiller.Execute(*dir_p, *env_p, *target_base_dir_p, *verbose_p)
+}
+
+/*
+func main_x() {
+    in_p := pflag.String("in", "", "in file (default stdin)")
+    out_p := pflag.String("out", "", "out file (default stdout)")
+    pflag.Parse()
+
+    var (
+        t      *template.Template
+        params map[string]interface{}
+        err    error
+    )
+
+    if *in_p == "" {
+        b, err := ioutil.ReadAll(os.Stdin)
+        if err != nil {
+            log.Panicln(err)
+        }
+        t = template.Must(template.New("stdin").Parse(string(b)))
+    } else {
+        t = template.Must(template.ParseFiles(*in_p))
+    }
+
+    out_f := os.Stdout
+    if *out_p != "" {
+        out_f, err = os.Create(*out_p)
+        if err != nil {
+            log.Panicln(err)
+        }
+        defer out_f.Close()
+    }
+
+    t.Execute(out_f, params)
+
+    // fmt.Printf("%v\n", os.Args)
+}
+*/

@@ -1,0 +1,15 @@
+t1.conf:
+    vars:
+        v1: v_env1_t1_1
+        x: v_env1_t1_x
+t2.ini:
+    vars:
+        v1: v_env1_t2_1
+        x: v_env1_t2_x
+t3.conf:
+    target: /etc/something/t3.conf
+    vars:
+        v1: v_env1_t3_1
+        v2: v_env1_t3_2
+        v3: v_env1_t3_3
+        x: v_env1_t3_x

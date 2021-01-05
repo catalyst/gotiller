@@ -1,0 +1,38 @@
+default_vars:
+    v0: v_default_0
+    x: v_default_x
+    y: v_default_y
+    z: v_default_z
+
+defaults:
+    t1.conf:
+        target: /etc/something/t1.conf
+        vars:
+            v1: v_template_default_t1_1
+            v2: v_template_default_t1_2
+            v3: v_template_default_t1_3
+            x: v_template_default_t1_x
+            y: v_template_default_t1_y
+            z: v_template_default_t1_z
+    t2.ini:
+        target: /var/www/app/t2.ini
+        vars:
+            v1: v_template_default_t2_1
+            v2: v_template_default_t2_2
+            v3: v_template_default_t2_3
+            x: v_template_default_t2_x
+            y: v_template_default_t2_y
+            z: v_template_default_t2_z
+
+env_vars_prefix: env_
+
+default_environment: env1
+
+environments:
+    env1:
+        t1.conf:
+            vars:
+                v1: v_common_env1_t1_1
+                v2: v_common_env1_t1_2
+                x: v_common_env1_t1_x
+                y: v_common_env1_t1_y
