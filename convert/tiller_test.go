@@ -1,14 +1,6 @@
 package convert
 
 import (
-    /*
-    "os"
-    "io/ioutil"
-    "log"
-    "fmt"
-    "strings"
-    "github.com/catalyst/gotiller/util"
-    */
     "path/filepath"
     "runtime"
 
@@ -72,21 +64,6 @@ var c1 = AnyMap {
     },
     "blah": nil,
 }
-func Test_convert_config(t *testing.T) {
-    source_dir := t.TempDir()
-    source_config_path := filepath.Join(source_dir, gotiller.ConfigFname)
-    util.WriteFile(source_config_path, []byte(c1_tiller))
-
-    config := make(AnyMap)
-    if err := yaml.Unmarshal([]byte(c1_tiller), config); err != nil {
-        panic(err)
-    }
-
-    converter := NewConverter(source_dir, "/tmp", "env_")
-    converter.convert_config(config)
-
-    assert.Equal(t, c1, config, "convert_config()")
-}
 
 type TemplateConversion struct {
     Tiller   string
@@ -100,6 +77,11 @@ appname = "<%= app %>"
 <%- else -%>
 appname = "blah"
 <%- end -%>
+
+# Start pgbouncer, if required
+<%- if !defined?(env_disable_pgbouncer) -%>
+/etc/init.d/pgbouncer start
+<%- end -%>
 `,
         GoTiller: `
 {{- if and .x .y -}}
@@ -107,12 +89,31 @@ appname = "{{ .app }}"
 {{- else -}}
 appname = "blah"
 {{- end -}}
+
+# Start pgbouncer, if required
+{{- if not .disable_pgbouncer -}}
+/etc/init.d/pgbouncer start
+{{- end -}}
 `,
     },
 }
-func Test_convert_template(t *testing.T) {
+func Test_Converter(t *testing.T) {
+    source_dir := t.TempDir()
+    source_config_path := filepath.Join(source_dir, gotiller.ConfigFname)
+    util.WriteFile(source_config_path, []byte(c1_tiller))
+
+    config := make(AnyMap)
+    if err := yaml.Unmarshal([]byte(c1_tiller), config); err != nil {
+        panic(err)
+    }
+
+    converter := NewConverter(source_dir, "/tmp", "env_")
+    converter.convert_config(config)
+
+    assert.Equal(t, c1, config, "convert_config()")
+
     for _, ct := range template_conversion_tests {
-        assert.Equal(t, ct.GoTiller, convert_template(ct.Tiller), "convert_template()")
+        assert.Equal(t, ct.GoTiller, converter.convert_template(ct.Tiller), "convert_template()")
     }
 }
 
@@ -121,5 +122,5 @@ var (
     base_dir   = filepath.Dir(b)
 )
 
-func Test_FromTiller(t *testing.T) {
+func Test_Convert(t *testing.T) {
 }

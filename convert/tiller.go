@@ -34,7 +34,7 @@ func (c *Converter) init() {
     then rename. But this is good enough.
     */
     gt := gotiller.New(c.SourceDir)
-    for _, e := range gt.Environments() {
+    for _, e := range gt.ListEnvironments() {
         for template, target := range gt.Templates(e) {
             c.RenameTemplate(template, target.Target)
         }
@@ -70,7 +70,24 @@ func (c *Converter) RenamedTemplate(t string) string {
     return t
 }
 
-func FromTiller(in_dir string, out_dir string, strip_var_prefix string) {
+func NewConverter(in_dir string, out_dir string, strip_var_prefix string) *Converter {
+    c := &Converter{
+        SourceDir     : in_dir,
+        TargetDir     : out_dir,
+        StripVarPrefix: strip_var_prefix,
+    }
+    c.init()
+    return c
+}
+
+func (c *Converter) Convert() {
+    c.ConvertMainConfig()
+    c.ConvertConfigD()
+    c.ConvertEnvironments()
+    c.ConvertTemplates()
+}
+
+func Convert(in_dir string, out_dir string, strip_var_prefix string) {
     if (out_dir == "") {
         panic("output gotiller config dir not given")
     }
@@ -95,49 +112,27 @@ func FromTiller(in_dir string, out_dir string, strip_var_prefix string) {
     converter.Convert()
 }
 
-func NewConverter(in_dir string, out_dir string, strip_var_prefix string) *Converter {
-    c := &Converter{
-        SourceDir     : in_dir,
-        TargetDir     : out_dir,
-        StripVarPrefix: strip_var_prefix,
-    }
-    c.init()
-    return c
-}
-
-func (c *Converter) Convert() {
-    c.ConvertMainConfig()
-    c.ConvertConfigD()
-    c.ConvertEnvironments()
-    c.ConvertTemplates()
-}
-
 func (c *Converter) ConvertMainConfig() {
     tiller_config_path := filepath.Join(c.SourceDir, gotiller.ConfigFname)
-    converted_config_path := filepath.Join(c.TargetDir, gotiller.ConfigFname)
 
-    c.convert_config_file(tiller_config_path, converted_config_path)
+    if _, err := os.Stat(tiller_config_path); err == nil {
+        converted_config_path := filepath.Join(c.TargetDir, gotiller.ConfigFname)
+
+        c.convert_config_file(tiller_config_path, converted_config_path)
+    }
 }
 
 func (c *Converter) ConvertConfigD() {
-    c.ConvertConfigSubdir(gotiller.ConfigD)
-}
-
-func (c *Converter) ConvertEnvironments() {
-    c.ConvertConfigSubdir(gotiller.EnvironmentsSubdir)
-}
-
-func (c *Converter) ConvertConfigSubdir(subdir string) {
-    tiller_config_subdir := filepath.Join(c.SourceDir, subdir)
-    converted_config_subdir := filepath.Join(c.TargetDir, subdir)
-
-    util.Mkdir(converted_config_subdir)
+    tiller_config_subdir := filepath.Join(c.SourceDir, gotiller.ConfigD)
 
     if _, err := os.Stat(tiller_config_subdir); err == nil {
         dir_entries, err := ioutil.ReadDir(tiller_config_subdir)
         if err != nil {
             log.Panic(err)
         }
+
+        converted_config_subdir := filepath.Join(c.TargetDir, gotiller.ConfigD)
+        util.Mkdir(converted_config_subdir)
 
         for _, entry := range dir_entries {
             tiller_config_path := filepath.Join(tiller_config_subdir, entry.Name())
@@ -196,6 +191,34 @@ func (c *Converter) convert_config(config AnyMap) {
     }
 }
 
+func (c *Converter) ConvertEnvironments() {
+    tiller_environments_subdir := filepath.Join(c.SourceDir, gotiller.EnvironmentsSubdir)
+
+    if _, err := os.Stat(tiller_environments_subdir); err == nil {
+        dir_entries, err := ioutil.ReadDir(tiller_environments_subdir)
+        if err != nil {
+            log.Panic(err)
+        }
+
+        converted_environments_subdir := filepath.Join(c.TargetDir, gotiller.EnvironmentsSubdir)
+        util.Mkdir(converted_environments_subdir)
+
+        for _, entry := range dir_entries {
+            tiller_config_path := filepath.Join(tiller_environments_subdir, entry.Name())
+            converted_config_path := filepath.Join(converted_environments_subdir, entry.Name())
+            c.convert_environment_config_file(tiller_config_path, converted_config_path)
+        }
+    }
+}
+
+func (c *Converter) convert_environment_config_file(in_path string, out_path string) {
+    config := make(AnyMap)
+    util.ReadYaml(in_path, config)
+
+    c.convert_environment(config)
+    util.WriteYaml(out_path, config)
+}
+
 func (c *Converter) convert_environment(templates AnyMap) AnyMap {
     converted := make(AnyMap)
 
@@ -249,7 +272,7 @@ func (c *Converter) ConvertTemplates() {
         converted_template_path := filepath.Join(converted_templates_subdir, new_t)
 
         content := util.SlurpFile(tiller_template_path)
-        converted := convert_template(string(content))
+        converted := c.convert_template(string(content))
         util.WriteFile(converted_template_path, []byte(converted))
 
         if _, err := template.New("").Parse(converted); err != nil {
@@ -258,12 +281,17 @@ func (c *Converter) ConvertTemplates() {
     }
 }
 
-func convert_template(content string) string {
-    return tag_re.ReplaceAllStringFunc(content, tag_fn)
+func (c *Converter) convert_template(content string) string {
+    return tag_re.ReplaceAllStringFunc(content, func (tag string) string {
+        return c.convert_tag(tag)
+    })
 }
 
-var tag_re = regexp.MustCompile(`<%(#|=|-)?\s*([^%]*?)\s*(-)?%>`)
-func tag_fn(tag string) string {
+var (
+    tag_re = regexp.MustCompile(`<%(#|=|-)?\s*([^%]*?)\s*(-)?%>`)
+    conditional_op_re = regexp.MustCompile(`^([^?]+?)\s+\?\s+(.*?)\s+:\s+(.*)?`)
+)
+func (c *Converter) convert_tag(tag string) string {
     m := tag_re.FindStringSubmatch(tag)
     leader := m[1]
     content := m[2]
@@ -278,23 +306,31 @@ func tag_fn(tag string) string {
             // we can only try ?: conversion for straight output
             if m := conditional_op_re.FindStringSubmatch(content); m != nil {
                 cond, if_true, if_false := m[1], m[2], m[3]
-                return convert_conditional(cond, if_true, if_false, front_strip, end_strip)
+                return c.convert_conditional(cond, if_true, if_false, front_strip, end_strip)
             }
 
-            converted, _ = convert_exp(content, true)
+            converted, _ = c.convert_exp(content)
         default:
             front_strip = leader
-            converted = convert_statement(content)
+            converted = c.convert_statement(content)
     }
 
     return join_exps(" ", "{{" + front_strip, converted, end_strip + "}}")
 }
 
-var conditional_op_re = regexp.MustCompile(`^([^?]+?)\s+\?\s+(.*?)\s+:\s+(.*)?`)
-func convert_conditional(cond string, if_true string, if_false string, front_strip string, end_strip string) string {
-    converted_cond  := convert_statement("if " + cond)
-    converted_true,  _ := convert_exp(if_true, true)
-    converted_false, _ := convert_exp(if_true, true)
+func (c *Converter) convert_conditional(
+    cond string, if_true string, if_false string,
+    front_strip string, end_strip string,
+) string {
+    converted_cond := c.convert_statement("if " + cond)
+    converted_true, is_var := c.convert_exp(if_true)
+    if !is_var {
+        converted_true = enclose_in_brackets(converted_true)
+    }
+    converted_false, is_var := c.convert_exp(if_true)
+    if !is_var {
+        converted_false = enclose_in_brackets(converted_false)
+    }
 
     return join_exps(" ",
         "{{" + front_strip, converted_cond, "}}{{",
@@ -306,7 +342,7 @@ func convert_conditional(cond string, if_true string, if_false string, front_str
 }
 
 var statement_re = regexp.MustCompile(`^(\w+)\b\s*(.*)$`)
-func convert_statement(statement string) string {
+func (c *Converter) convert_statement(statement string) string {
     if m := statement_re.FindStringSubmatch(statement); m != nil {
         stmt, exp := m[1], m[2]
 
@@ -317,7 +353,7 @@ func convert_statement(statement string) string {
                 }
                 return stmt
             case "if":
-                converted_exp, _ := convert_exp(exp, true)
+                converted_exp, _ := c.convert_exp(exp)
                 return join_exps(" ", stmt, converted_exp)
         }
     }
@@ -328,7 +364,8 @@ func convert_statement(statement string) string {
 }
 
 const (
-    unary_op_re          = `(!|not|defined\?)`
+    not_op_re            = `(!|not)`
+    fn__re               = `(defined\?)`
     var_re               = `[\w.]+`
     not_comparison_op_re = `[^=!<>]`
 )
@@ -336,7 +373,6 @@ var (
     tiller_op_to_fn = map[string]string {
         "!"       : "not",
         "not"     : "not",
-        "defined?": "",
         "or"      : "or",
         "and"     : "and",
         "||"      : "or",
@@ -350,9 +386,12 @@ var (
         "<="      : "le",
         "<"       : "lt",
     }
+    tiller_fn_to_fn = map[string]string {
+        "defined?": "",
+    }
 
-    bracket_re        = regexp.MustCompile(`^` + unary_op_re + `?\s*\(\s*(.*)\s*\)$`)
-    unary_exp_re      = regexp.MustCompile(`^` + unary_op_re + `\s*(` + var_re + `)$`)
+    bracket_re        = regexp.MustCompile(`^` + not_op_re + `?` + fn__re + `?` + `?\s*\(\s*(.*)\s*\)$`)
+    unary_exp_re      = regexp.MustCompile(`^` + not_op_re + `\s*(` + var_re + `)$`)
     var_exp_re        = regexp.MustCompile(`^` + var_re + `$`)
     comparison_op_re  = regexp.MustCompile(
         `^(` + not_comparison_op_re + `+?)\s*` +
@@ -368,11 +407,11 @@ var (
     }
 )
 
-func convert_exp(exp string, no_enclosing_brackets bool) (string, bool) {
+func (c *Converter) convert_exp(exp string) (string, bool) {
     if m := bracket_re.FindStringSubmatch(exp); m != nil {
-        op, subexp := m[1], m[2]
+        not_op, fn, subexp := m[1], m[2], m[3]
         if !has_unbalanced_bracket(subexp) {
-            return convert_unary_exp(op, subexp, no_enclosing_brackets)
+            return c.convert_unary_exp(not_op, fn, subexp)
         }
     }
 
@@ -388,18 +427,14 @@ func convert_exp(exp string, no_enclosing_brackets bool) (string, bool) {
                 if has_unbalanced_bracket(subexp) {
                     continue OpLoop
                 }
-                converted_exp, is_var := convert_exp(subexp, true)
+                converted_exp, is_var := c.convert_exp(subexp)
                 if !is_var {
                     converted_exp = enclose_in_brackets(converted_exp)
                 }
                 s_converted_exp = append(s_converted_exp, converted_exp)
             }
 
-            converted_exp := join_exps(" ", append([]string{tiller_op_to_fn[op]}, s_converted_exp...)...)
-            if no_enclosing_brackets {
-                return converted_exp, false
-            }
-            return enclose_in_brackets(converted_exp), false
+            return join_exps(" ", append([]string{tiller_op_to_fn[op]}, s_converted_exp...)...), false
         }
     }
 
@@ -407,21 +442,17 @@ func convert_exp(exp string, no_enclosing_brackets bool) (string, bool) {
         left, op, right := m[1], m[2], m[3]
         split_attempted = append(split_attempted, op)
         if !has_unbalanced_bracket(left) &&  !has_unbalanced_bracket(right) {
-            converted_left, is_var := convert_exp(left, true)
+            converted_left, is_var := c.convert_exp(left)
             if !is_var {
                 converted_left = enclose_in_brackets(converted_left)
             }
 
-            converted_right, is_var := convert_exp(right, true)
+            converted_right, is_var := c.convert_exp(right)
             if !is_var {
                 converted_right = enclose_in_brackets(converted_right)
             }
 
-            converted_exp := join_exps(" ", tiller_op_to_fn[op], converted_left, converted_right)
-            if no_enclosing_brackets {
-                return converted_exp, false
-            }
-            return enclose_in_brackets(converted_exp), false
+            return join_exps(" ", tiller_op_to_fn[op], converted_left, converted_right), false
         }
     }
 
@@ -431,10 +462,14 @@ func convert_exp(exp string, no_enclosing_brackets bool) (string, bool) {
     }
 
     if m := unary_exp_re.FindStringSubmatch(exp); m != nil {
-        return convert_unary_exp(m[1], m[2], no_enclosing_brackets)
+        return c.convert_unary_exp(m[1], "", m[2])
     }
 
     if var_exp_re.MatchString(exp) {
+        if c.StripVarPrefix != "" {
+            exp = strings.TrimPrefix(exp, c.StripVarPrefix)
+        }
+
         return join_exps("", ".", exp), true
     }
 
@@ -442,21 +477,30 @@ func convert_exp(exp string, no_enclosing_brackets bool) (string, bool) {
     return exp, false
 }
 
-func convert_unary_exp(op string, exp string, no_enclosing_brackets bool) (string, bool) {
-    go_fn := tiller_op_to_fn[op]
-    converted_exp, is_var := convert_exp(exp, true)
-    if go_fn != "" {
-        if !is_var {
-            converted_exp = enclose_in_brackets(converted_exp)
+func (c *Converter) convert_unary_exp(not_op string, fn string, exp string) (string, bool) {
+    converted_exp, is_var := c.convert_exp(exp)
+
+    var go_fn string
+    if fn != "" {
+        if go_fn = tiller_fn_to_fn[fn]; go_fn != "" {
+            converted_exp = join_exps("", go_fn, enclose_in_brackets(converted_exp))
+            // keep is_var, it is fn(blah) so behaves like a single var
         }
-        converted_exp = join_exps(" ", go_fn, converted_exp)
-        is_var = false
     }
 
-    if no_enclosing_brackets || is_var{
-        return converted_exp, is_var
+    if not_op != "" {
+        not_fn := tiller_op_to_fn[not_op]
+
+        if is_var {
+            is_var = false
+        } else {
+            converted_exp = enclose_in_brackets(converted_exp)
+            is_var = true
+        }
+        converted_exp = join_exps(" ", not_fn, converted_exp)
     }
-    return enclose_in_brackets(converted_exp), false
+
+    return converted_exp, is_var
 }
 
 func join_exps(join string, exp ...string) string {

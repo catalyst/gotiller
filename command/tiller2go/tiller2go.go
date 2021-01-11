@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-    in_dir_p := pflag.StringP("tiller-config-dir",  "t", "", fmt.Sprintf("tiller config dir (default . then %s)", tiller.ConfigEtcPath))
-    strip_prefix_p := pflag.StringP("strip-var-prefix",  "s", "", "strip prefix from vars")
+    in_dir_p := pflag.StringP("tiller-config-dir",  "t", "", fmt.Sprintf("tiller config dir (default . then %s)", convert.ConfigEtcPath))
+    strip_var_prefix_p := pflag.StringP("strip-var-prefix",  "s", "", "strip prefix from vars")
     pflag.Usage = func() {
         fmt.Println("Usage:")
         fmt.Println(os.Args[0] + " [--tiller-config-dir|-t path] output-config-dir-path")
@@ -19,7 +19,7 @@ func main() {
     }
     pflag.Parse()
 
-    out_dir_p = pflag.Arg(0)
+    out_dir_p := pflag.Arg(0)
 
     defer func() {
         if r := recover(); r != nil {
@@ -28,5 +28,5 @@ func main() {
         }
     }()
 
-    convert.FromTiller(*in_dir_p, out_dir_p)
+    convert.Convert(*in_dir_p, out_dir_p, *strip_var_prefix_p)
 }

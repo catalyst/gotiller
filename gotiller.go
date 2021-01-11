@@ -109,7 +109,9 @@ func (gt *GoTiller) init() {
     if _, err := os.Stat(config_path); err == nil {
         config = slurp_config(config_path)
     } else {
-        config = new(Config)
+        config = &Config{
+            Environments: make(map[string]Templates),
+        }
     }
 
     configd_dir := filepath.Join(gt.Dir, ConfigD)
@@ -125,12 +127,21 @@ func (gt *GoTiller) init() {
         }
     }
 
-    if config.EnvVarsPrefix != "" {
-        gt.EnvVars = extract_env_vars(config.EnvVarsPrefix)
+    environment_pattern := filepath.Join(gt.Dir, EnvironmentsSubdir, "*" + ConfigSuffix)
+    if matches, _ := filepath.Glob(environment_pattern); matches != nil {
+        for _, m := range matches {
+            environment := strings.TrimSuffix(filepath.Base(m), ConfigSuffix)
+            if _, exists := config.Environments[environment]; !exists {
+                config.Environments[environment] = nil
+            }
+        }
     }
-
     if config.Environments == nil {
         logger.Panicf("No environments found in %s", gt.Dir)
+    }
+
+    if config.EnvVarsPrefix != "" {
+        gt.EnvVars = extract_env_vars(config.EnvVarsPrefix)
     }
 
     gt.Config = config
@@ -146,24 +157,9 @@ func New(dir string) *GoTiller {
     return gt
 }
 
-func (gt *GoTiller) Environments () []string {
-    environments := make(map[string]bool)
-
-    if gt.Config.Environments != nil {
-        for e, _ := range gt.Config.Environments {
-            environments[e] = true
-        }
-    }
-
-    environment_pattern := filepath.Join(gt.Dir, EnvironmentsSubdir, "*" + ConfigSuffix)
-    if matches, _ := filepath.Glob(environment_pattern); matches != nil {
-        for _, m := range matches {
-            environments[strings.TrimSuffix(filepath.Base(m), ConfigSuffix)] = true
-        }
-    }
-
+func (gt *GoTiller) ListEnvironments() []string {
     var environments_s []string
-    for e, _ := range environments {
+    for e, _ := range gt.Environments {
         environments_s = append(environments_s, e)
     }
     return environments_s
