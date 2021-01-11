@@ -7,6 +7,8 @@ import (
     "path/filepath"
     "strings"
     "strconv"
+    "sync"
+    "fmt"
 
     "text/template"
     "github.com/catalyst/gotiller/util"
@@ -209,15 +211,35 @@ func (gt *GoTiller) Execute(environment string, target_base_dir string) {
 
     logger.Printf("Executing for %s\n", environment)
 
-    wg := util.NewWaitGroup()
+    var wg sync.WaitGroup
+    error_ch := make(chan string)
+    var errs []string
+    go func() {
+        for err:= range error_ch {
+            errs = append(errs, err)
+        }
+    }()
+
     for tpl, target := range gt.Templates(environment)  {
-        // need to make a copy, cause goroutine/pointer
-        t_target := target
-        wg.Run(func() {
-            gt.Deploy(tpl, t_target, target_base_dir)
-        })
+        wg.Add(1)
+        // Need to pass params, cause loop params are volatile.
+        go func(tpl string, target *Target) {
+            defer func() {
+                wg.Done()
+
+                if r := recover(); r != nil {
+                    error_ch <- fmt.Sprintf("%s", r)
+                }
+            }()
+
+            gt.Deploy(tpl, target, target_base_dir)
+        }(tpl, target)
     }
     wg.Wait()
+
+    if errs != nil {
+        logger.Panicf("%#v", errs)
+    }
 }
 
 func (gt *GoTiller) Deploy(tpl string, target *Target, target_base_dir string) {
@@ -226,8 +248,6 @@ func (gt *GoTiller) Deploy(tpl string, target *Target, target_base_dir string) {
 
     logger.Printf("%s -> %s\n", template_path, target.Target)
     // logger.Printf("%s -> %s Error: %s\n", template_path, target.Target, err)
-
-    t := template.Must( template.New(tpl).Funcs(gt.FuncMap).ParseFiles(template_path) )
 
     target_path := target.Target
     if target_path == "" {
@@ -245,6 +265,7 @@ func (gt *GoTiller) Deploy(tpl string, target *Target, target_base_dir string) {
         panic(err)
     }
 
+    t := template.Must( template.New(tpl).Funcs(gt.FuncMap).ParseFiles(template_path) )
     if err := t.Execute(out, vars); err != nil {
         panic(err)
     }
