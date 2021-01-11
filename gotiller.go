@@ -100,7 +100,8 @@ func (c *Config) merge(configs ...*Config) {
 type GoTiller struct {
     Dir     string
     *Config
-    EnvVars Vars
+    EnvVars          Vars
+    template.FuncMap
 }
 func (gt *GoTiller) init() {
     var config *Config
@@ -225,10 +226,8 @@ func (gt *GoTiller) Deploy(tpl string, target *Target, target_base_dir string) {
 
     logger.Printf("%s -> %s\n", template_path, target.Target)
     // logger.Printf("%s -> %s Error: %s\n", template_path, target.Target, err)
-    t, err := template.ParseFiles(template_path)
-    if err != nil {
-        panic(err)
-    }
+
+    t := template.Must( template.New(tpl).Funcs(gt.FuncMap).ParseFiles(template_path) )
 
     target_path := target.Target
     if target_path == "" {
