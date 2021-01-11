@@ -46,7 +46,7 @@ blah:
 `
 var c1 = AnyMap {
     "default_vars": AnyMap {
-        "env_db_hostname": "localhost",
+        "db_hostname": "localhost",
     },
     "defaults": AnyMap {
         "db.ini": AnyMap {
@@ -58,14 +58,14 @@ var c1 = AnyMap {
         "production": AnyMap {
             "db.ini": AnyMap {
                 "vars": AnyMap {
-                    "env_db_hostname": "db.prod.example.com",
+                    "db_hostname": "db.prod.example.com",
                 },
             },
         },
         "staging": AnyMap {
             "db.ini": AnyMap {
                 "vars": AnyMap {
-                    "env_db_hostname": "db.staging.example.com",
+                    "db_hostname": "db.staging.example.com",
                 },
             },
         },
@@ -82,7 +82,7 @@ func Test_convert_config(t *testing.T) {
         panic(err)
     }
 
-    converter := NewConverter(source_dir, "/tmp")
+    converter := NewConverter(source_dir, "/tmp", "env_")
     converter.convert_config(config)
 
     assert.Equal(t, c1, config, "convert_config()")
@@ -95,15 +95,15 @@ type TemplateConversion struct {
 var template_conversion_tests = []TemplateConversion {
     {
         Tiller: `
-<%- if defined?(env_x) && defined?(env_y) -%>
-appname = "<%= env_app %>"
+<%- if defined?(x) && defined?(y) -%>
+appname = "<%= app %>"
 <%- else -%>
 appname = "blah"
 <%- end -%>
 `,
         GoTiller: `
-{{- if and .env_x .env_y -}}
-appname = "{{ .env_app }}"
+{{- if and .x .y -}}
+appname = "{{ .app }}"
 {{- else -}}
 appname = "blah"
 {{- end -}}

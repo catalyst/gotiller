@@ -19,8 +19,9 @@ type AnyMap = map[string]interface{}
 type RenamedTemplates = map[string]string
 
 type Converter struct {
-    SourceDir         string
-    TargetDir         string
+    SourceDir        string
+    TargetDir        string
+    StripVarPrefix   string
     RenamedTemplates
 }
 func (c *Converter) init() {
@@ -69,7 +70,7 @@ func (c *Converter) RenamedTemplate(t string) string {
     return t
 }
 
-func FromTiller(in_dir string, out_dir string) {
+func FromTiller(in_dir string, out_dir string, strip_var_prefix string) {
     if (out_dir == "") {
         panic("output gotiller config dir not given")
     }
@@ -90,14 +91,15 @@ func FromTiller(in_dir string, out_dir string) {
         }
     }
 
-    converter := NewConverter(in_dir, out_dir)
+    converter := NewConverter(in_dir, out_dir, strip_var_prefix)
     converter.Convert()
 }
 
-func NewConverter(in_dir string, out_dir string) *Converter {
+func NewConverter(in_dir string, out_dir string, strip_var_prefix string) *Converter {
     c := &Converter{
-        SourceDir: in_dir,
-        TargetDir: out_dir,
+        SourceDir     : in_dir,
+        TargetDir     : out_dir,
+        StripVarPrefix: strip_var_prefix,
     }
     c.init()
     return c
@@ -168,7 +170,8 @@ func (c *Converter) convert_config(config AnyMap) {
 
             case "defaults":
                 if g, exists := v.(AnyMap)["global"]; exists {
-                    default_vars = g.(AnyMap)  // defaults.global -> default_vars
+                    // defaults.global -> default_vars
+                    default_vars = c.convert_vars(g.(AnyMap))
                     delete(v.(AnyMap), "global")
                 }
 
@@ -199,21 +202,33 @@ func (c *Converter) convert_environment(templates AnyMap) AnyMap {
     for t, target := range templates {
         new_t := c.RenamedTemplate(t)
 
-        convert_target(target.(AnyMap))
+        c.convert_target(target.(AnyMap))
         converted[new_t] = target
     }
 
     return converted
 }
 
-func convert_target(target AnyMap) {
+func (c *Converter) convert_target(target AnyMap) {
     for k, v := range target {
         switch k {
             case "config":  // config -> vars
-                target["vars"] = v
+                target["vars"] = c.convert_vars(v.(AnyMap))
                 delete(target, k)
         }
     }
+}
+
+func (c *Converter) convert_vars(vars AnyMap) AnyMap {
+    if c.StripVarPrefix == "" {
+        return vars
+    }
+
+    new_vars := make(AnyMap)
+    for v, val := range vars {
+        new_vars[strings.TrimPrefix(v, c.StripVarPrefix)] = val
+    }
+    return new_vars
 }
 
 func (c *Converter) ConvertTemplates() {
