@@ -5,6 +5,12 @@ default_vars:
     z: v_default_z
 
 defaults:
+    if-and-or-not.conf:
+        target: /etc/something/if-and-or-not.conf
+        vars:
+            v_true_1: "A string"
+            v_true_2: 1
+            v_false_1: ""
     t1.conf:
         target: /etc/something/t1.conf
         vars:
