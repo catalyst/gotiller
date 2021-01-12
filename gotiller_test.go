@@ -83,7 +83,10 @@ var t1_t2 = Templates {
 func Test_merge_templates(t *testing.T) {
     t.Cleanup(util.SupressLogForTest(t, logger))
 
-    assert.Equal(t, t1_t2, merge_templates(t1, t2), "merge_templates()")
+    tr := make(Templates)
+    tr.merge(t1, t2)
+
+    assert.Equal(t, t1_t2, tr, "merge_templates()")
 }
 
 var c1 = Config {
@@ -205,7 +208,10 @@ valV
 valDV
 `
 func Test_merge_vars(t *testing.T) {
-    assert.Equal(t, merged_vars, merge_vars(default_vars, target.Vars, vars), "merge_vars()")
+    vr := make(Vars)
+    vr.merge(default_vars, target.Vars, vars)
+
+    assert.Equal(t, merged_vars, vr, "merge_vars()")
 }
 
 var (

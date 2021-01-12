@@ -3,7 +3,6 @@ package gotiller
 import (
     "os"
     "os/user"
-    "io/ioutil"
     "path/filepath"
     "strings"
     "strconv"
@@ -24,6 +23,24 @@ const (
 )
 
 type Vars      map[string]string
+func (vs *Vars) merge(vars ...Vars) {
+    r_vars := *vs
+
+    for _, v := range vars {
+        if v == nil {
+            continue
+        }
+
+        for k, val := range v {
+            if val != r_vars[k] {
+                logger.Debugf("Setting var %s to %s\n", k, val)
+                r_vars[k] = val
+            }
+        }
+    }
+
+    *vs = r_vars
+}
 
 type Target struct {
     Target string
@@ -34,25 +51,53 @@ type Target struct {
 }
 func (t *Target) merge(targets ...*Target) {
     for _, target := range targets {
-        if target.Target != "" {
+        if target.Target != "" && target.Target != t.Target {
+            logger.Debugf("Setting target to %s\n", target.Target)
             t.Target = target.Target
         }
-        if target.User != "" {
+        if target.User != "" && target.User != t.User {
+            logger.Debugf("Setting target owner to user %s\n", target.User)
             t.User = target.User
         }
-        if target.Group != "" {
+        if target.Group != "" && target.Group != t.Group {
+            logger.Debugf("Setting target group to %s\n", target.Group)
             t.Group = target.Group
         }
-        if target.Perms != os.FileMode(0) {
+        if target.Perms != os.FileMode(0) && target.Perms != t.Perms {
+            logger.Debugf("Setting target permissions to %s\n", target.Perms)
             t.Perms = target.Perms
         }
+        logger.Printf("t %#v\n", target.Vars)
         if target.Vars != nil {
-            t.Vars = merge_vars(t.Vars, target.Vars)
+            if t.Vars == nil {
+                t.Vars = target.Vars
+            } else {
+                t.Vars.merge(target.Vars)
+            }
         }
     }
 }
 
 type Templates map[string]*Target
+func (ts *Templates) merge(templates ...Templates) {
+    r_templates := *ts
+
+    for _, t := range templates {
+        if t == nil {
+            continue
+        }
+
+        for template, target := range t {
+            if r_target, exists := r_templates[template]; exists {
+                r_target.merge(target)
+            } else {
+                r_templates[template] = target
+            }
+        }
+    }
+
+    *ts = r_templates
+}
 
 type Config struct {
     Defaults           Templates
@@ -67,15 +112,25 @@ func (c *Config) merge(configs ...*Config) {
             continue
         }
 
-        c.Defaults = merge_templates(c.Defaults, config.Defaults)
+        if c.Defaults == nil {
+            c.Defaults = config.Defaults
+        } else {
+            c.Defaults.merge(config.Defaults)
+        }
 
-        c.DefaultVars = merge_vars(c.DefaultVars, config.DefaultVars)
+        if c.DefaultVars == nil {
+            c.DefaultVars = config.DefaultVars
+        } else {
+            c.DefaultVars.merge(config.DefaultVars)
+        }
 
-        if config.DefaultEnvironment != "" {
+        if config.DefaultEnvironment != "" && config.DefaultEnvironment != c.DefaultEnvironment {
+            logger.Printf("Setting default_environment to %s\n", config.DefaultEnvironment)
             c.DefaultEnvironment = config.DefaultEnvironment
         }
 
-        if config.EnvVarsPrefix != "" {
+        if config.EnvVarsPrefix != "" && config.EnvVarsPrefix != c.EnvVarsPrefix {
+            logger.Printf("Setting env_vars_prefix to %s\n", config.EnvVarsPrefix)
             c.EnvVarsPrefix = config.EnvVarsPrefix
         }
 
@@ -88,45 +143,69 @@ func (c *Config) merge(configs ...*Config) {
 
             default:
                 for e, templates := range config.Environments {
-                    r_templates, exists := c.Environments[e]
-                    if exists {
-                        c.Environments[e] = merge_templates(r_templates, templates)
-                    } else {
-                        c.Environments[e] = templates
-                    }
+                    t := c.Environments[e]
+                    t.merge(templates)
                 }
         }
     }
 }
 
+type TargetSource struct {
+    Source string
+    *Target
+}
+type TemplatesTargetChain map[string][]*TargetSource
+func (tcp *TemplatesTargetChain) append(source string, templates Templates) {
+    tc := *tcp
+    for template, target := range templates {
+        ts := TargetSource{source, target}
+        tc[template] = append(tc[template], &ts)
+    }
+    *tcp = tc
+}
+
+type VarsSource struct {
+    Source string
+    Vars
+}
+type VarsChain []*VarsSource
+func (vcp *VarsChain) append(source string, vars Vars) {
+    vc := *vcp
+    vs := VarsSource{source, vars}
+    vc = append(vc, &vs)
+    *vcp = vc
+}
+
 type GoTiller struct {
-    Dir     string
+    Dir              string
     *Config
     EnvVars          Vars
     template.FuncMap
 }
 func (gt *GoTiller) init() {
-    var config *Config
+    logger.Printf("GoTiller root: %s\n", gt.Dir)
 
+    var config *Config
     config_path := filepath.Join(gt.Dir, ConfigFname)
     if _, err := os.Stat(config_path); err == nil {
+        logger.Debugf("Reading main config %s\n", ConfigFname)
         config = slurp_config(config_path)
     } else {
+        logger.Debugf("No main config %s\n", ConfigFname)
         config = &Config{
             Environments: make(map[string]Templates),
         }
     }
 
-    configd_dir := filepath.Join(gt.Dir, ConfigD)
-    if _, err := os.Stat(configd_dir); err == nil {
-        dir_entries, err := ioutil.ReadDir(configd_dir)
-        if err != nil {
-            logger.Panic(err)
-        }
+    config_pattern := filepath.Join(gt.Dir, ConfigD, "*" + ConfigSuffix)
+    if matches, _ := filepath.Glob(config_pattern); matches != nil {
+        logger.Debugf("Entering %s\n", ConfigD)
+        for _, m := range matches {
+            fname := strings.TrimSuffix(filepath.Base(m), ConfigSuffix)
 
-        for _, entry := range dir_entries {
-            configd_path := filepath.Join(configd_dir, entry.Name())
-            config.merge(slurp_config(configd_path))
+            logger.Debugf("Merging config %s\n", fname)
+            c := slurp_config(m)
+            config.merge(c)
         }
     }
 
@@ -168,20 +247,55 @@ func (gt *GoTiller) ListEnvironments() []string {
     return environments_s
 }
 
-func (gt *GoTiller) Templates(environment string) Templates {
-    templates_m := gt.Config.Defaults
+func (gt *GoTiller) TemplatesChain(environment string) TemplatesTargetChain {
+    tc := make(TemplatesTargetChain)
+
+    if gt.Config.Defaults != nil {
+        tc.append("config defaults", gt.Config.Defaults)
+    }
 
     if gt.Config.Environments != nil {
         if templates, exists := gt.Config.Environments[environment]; exists {
-            templates_m = merge_templates(templates_m, templates)
+            tc.append("config environments " + environment, templates)
         }
     }
 
     environment_config_path := filepath.Join(gt.Dir, EnvironmentsSubdir, environment + ConfigSuffix)
     if _, err := os.Stat(environment_config_path); err == nil {
-        templates_m = merge_templates(templates_m, slurp_environment_config(environment_config_path))
+        logger.Printf("Reading environment config for %s\n", environment)
+        tc.append("environment " + environment, slurp_environment_config(environment_config_path))
     }
 
+    return tc
+}
+
+func (gt *GoTiller) VarsChain(target *Target) VarsChain {
+    var vc VarsChain
+
+    if gt.Config.DefaultVars != nil {
+        vc.append("config default_vars", gt.Config.DefaultVars)
+    }
+
+    if target.Vars != nil {
+        vc.append("target", target.Vars)
+    }
+
+    if gt.EnvVars != nil {
+        vc.append("env", gt.EnvVars)
+    }
+
+    return vc
+}
+
+func (gt *GoTiller) Templates(environment string) Templates {
+    templates_m := make(Templates)
+    for template, tc := range gt.TemplatesChain(environment) {
+        t := new(Target)
+        for _, ts := range tc {
+            t.merge(ts.Target)
+            templates_m[template] = t
+        }
+    }
     return templates_m
 }
 
@@ -244,7 +358,10 @@ func (gt *GoTiller) Execute(environment string, target_base_dir string) {
 
 func (gt *GoTiller) Deploy(tpl string, target *Target, target_base_dir string) {
     template_path := filepath.Join(gt.Dir, TemplatesSubdir, tpl)
-    vars := merge_vars(gt.Config.DefaultVars, target.Vars, gt.EnvVars)
+    vars := make(Vars)
+    for _, vs := range gt.VarsChain(target) {
+        vars.merge(vs.Vars)
+    }
 
     logger.Printf("%s -> %s\n", template_path, target.Target)
     // logger.Printf("%s -> %s Error: %s\n", template_path, target.Target, err)
@@ -344,38 +461,3 @@ func slurp_environment_config(path string) Templates {
     return templates
 }
 
-func merge_templates(templates ...Templates) Templates {
-    r_templates := make(Templates)
-
-    for _, t := range templates {
-        if t == nil {
-            continue
-        }
-
-        for template, target := range t {
-            if r_target, exists := r_templates[template]; exists {
-                r_target.merge(target)
-            } else {
-                r_templates[template] = target
-            }
-        }
-    }
-
-    return r_templates
-}
-
-func merge_vars(vars ...Vars) Vars {
-    r_vars := make(Vars)
-
-    for _, v := range vars {
-        if v == nil {
-            continue
-        }
-
-        for k, val := range v {
-            r_vars[k] = val
-        }
-    }
-
-    return r_vars
-}
