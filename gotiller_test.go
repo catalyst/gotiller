@@ -239,6 +239,12 @@ func Test_Execute(t *testing.T) {
             do_execute_tests(dir, t)
         }
     }
+
+    conf_dir := t.TempDir()
+    assert.PanicsWithValue(t, "No environments found in " + conf_dir, func () {
+        target_dir := t.TempDir()
+        Execute(conf_dir, "blah", target_dir, true)
+    }, "Execute() in bogus directory")
 }
 
 func do_execute_tests(dir string, t *testing.T) {
@@ -274,6 +280,9 @@ func do_execute_tests(dir string, t *testing.T) {
 
     logger.SetDebug(true)
     gt := New(dir)
+
+    expected_environments := util.SlurpFileAsLines( filepath.Join(dir, "environments.list") )
+    assert.Equal(t, expected_environments, gt.ListEnvironments(), "ListEnvironments()")
 
     for environment, _ := range environments {
         t.Run(fmt.Sprint(dir, environment), func(t *testing.T) {

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# It is best to run this on tests that pass
+
+TMP_FNAME=/tmp/cover.out
+
+echo "${1%-*}"
+
+OUT="-func"
+if [ "$1" != "" -a "${1%%-*}" = "" ]
+then
+    OUT=$1
+    shift
+fi
+
+go test -coverprofile=$TMP_FNAME "$@" && go tool cover $OUT=$TMP_FNAME

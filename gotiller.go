@@ -106,6 +106,11 @@ type Config struct {
     EnvVarsPrefix      string    `yaml:"env_vars_prefix"`
     Environments       map[string]Templates
 }
+func (c *Config) init() {
+    if c.Environments == nil {
+        c.Environments = make(map[string]Templates)
+    }
+}
 func (c *Config) merge(configs ...*Config) {
     for _, config := range configs {
         if config == nil {
@@ -195,10 +200,9 @@ func (gt *GoTiller) init() {
         config = slurp_config(config_path)
     } else {
         logger.Debugf("No main config %s\n", ConfigFname)
-        config = &Config{
-            Environments: make(map[string]Templates),
-        }
+        config = new(Config)
     }
+    config.init()
 
     config_pattern := filepath.Join(gt.Dir, ConfigD, "*" + ConfigSuffix)
     if matches, _ := filepath.Glob(config_pattern); matches != nil {
@@ -217,11 +221,11 @@ func (gt *GoTiller) init() {
         for _, m := range matches {
             environment := strings.TrimSuffix(filepath.Base(m), ConfigSuffix)
             if _, exists := config.Environments[environment]; !exists {
-                config.Environments[environment] = nil
+                config.Environments[environment] = make(Templates)
             }
         }
     }
-    if config.Environments == nil {
+    if len(config.Environments) == 0 {
         logger.Panicf("No environments found in %s", gt.Dir)
     }
 
@@ -488,4 +492,3 @@ func slurp_environment_config(path string) Templates {
 
     return templates
 }
-

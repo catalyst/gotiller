@@ -19,7 +19,7 @@ func main() {
     dir_p := pflag.StringP("config-dir",  "d", "", fmt.Sprintf("gotiller config dir (default . then %s)", ConfigEtcPath))
     target_base_dir_p := pflag.StringP("output-base-dir", "o", "", "root dir for generate files (usually not needed)")
     env_p := pflag.StringP("environment", "e", "", "environment")
-    verbose_p := pflag.BoolP("verbose", "v", "", "verbose")
+    verbose_p := pflag.BoolP("verbose", "v", false, "verbose")
     pflag.Usage = func() {
         fmt.Println("Usage:")
         fmt.Println(os.Args[0] + " [--config-dir|-d path] [--output-base-dir|o path] [--verbose|v] --environment|-e environment")

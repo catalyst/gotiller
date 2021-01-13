@@ -4,6 +4,7 @@ import (
     "os"
     "fmt"
     "io/ioutil"
+    "bufio"
     "path/filepath"
 )
 
@@ -19,6 +20,20 @@ func SlurpFile(path string) []byte {
     }
 
     return bytes
+}
+
+func SlurpFileAsLines(path string) []string {
+    in_f, err := os.Open(path)
+    if err != nil {
+        panic(err)
+    }
+
+    scanner := bufio.NewScanner(in_f)
+    var result []string
+    for scanner.Scan() {
+        result = append(result, scanner.Text())
+    }
+    return result
 }
 
 func WriteFile(path string, content []byte) {
