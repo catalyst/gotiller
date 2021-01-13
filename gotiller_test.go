@@ -235,6 +235,7 @@ func Test_Execute(t *testing.T) {
         if entry.IsDir() {
             scenario := entry.Name()
             dir := filepath.Join(scenarios_dir, scenario)
+
             do_execute_tests(dir, t)
         }
     }
@@ -258,17 +259,33 @@ func do_execute_tests(dir string, t *testing.T) {
         panic(err)
     }
     for _, environment_entry := range environments_dir_entries {
-        env := strings.TrimSuffix(environment_entry.Name(), ".yaml")
-        environments[env] = true
+        environment := strings.TrimSuffix(environment_entry.Name(), ".yaml")
+        environments[environment] = true
     }
 
     assert.NotEmpty(t, environments, "environments to test " + dir)
-    for env := range environments {
-        t.Run(fmt.Sprint(dir, env), func(t *testing.T) {
+
+    if config.EnvVarsPrefix != "" {
+        defer clear_env(config.EnvVarsPrefix)
+
+        clear_env(config.EnvVarsPrefix)
+        os.Setenv(config.EnvVarsPrefix + "x", x_val)
+    }
+
+    logger.SetDebug(true)
+    gt := New(dir)
+
+    for environment, _ := range environments {
+        t.Run(fmt.Sprint(dir, environment), func(t *testing.T) {
             // fmt.Printf("%#v\n", os.Environ())
             t.Parallel()
 
-            do_execute_for_environment_test(dir, env, config.EnvVarsPrefix, t)
+            target_dir := t.TempDir()
+
+            gt.Execute(environment, target_dir)
+            assert_execution(t, dir, environment, target_dir)
+
+            do_var_chain_tests(dir, environment, gt, t)
         })
     }
 
@@ -277,28 +294,21 @@ func do_execute_tests(dir string, t *testing.T) {
 
         target_dir := t.TempDir()
 
-        if config.EnvVarsPrefix != "" {
-            clear_env(config.EnvVarsPrefix)
-            os.Setenv(config.EnvVarsPrefix + "x", x_val)
-        }
-
-        Execute(dir, "", target_dir, true)
+        gt.Execute("", target_dir)
         assert_execution(t, dir, config.DefaultEnvironment, target_dir)
     }
 }
 
-func do_execute_for_environment_test(dir string, environment string, env_var_prefix string, t *testing.T) {
-    target_dir := t.TempDir()
+type ExpectedVarsChains map[string]VarsChain
 
-    if env_var_prefix != "" {
-        defer clear_env(env_var_prefix)
+func do_var_chain_tests(dir string, environment string, gt *GoTiller, t *testing.T) {
+    expected_path := filepath.Join(dir, "vars_chain", environment + ".yaml")
+    expected_vcs := make(ExpectedVarsChains)
+    util.ReadYaml(expected_path, expected_vcs)
 
-        clear_env(env_var_prefix)
-        os.Setenv(env_var_prefix + "x", x_val)
+    for tpl, expected_vc := range expected_vcs {
+        assert.Equal(t, expected_vc, gt.DumpVarsChain(environment, tpl), expected_path + " for " + tpl)
     }
-
-    Execute(dir, environment, target_dir, true)
-    assert_execution(t, dir, environment, target_dir)
 }
 
 func assert_execution(t *testing.T, dir string, environment string, result_dir string) {

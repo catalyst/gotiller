@@ -13,7 +13,7 @@ func SupressLogForTest(t *testing.T, l *log.Logger) func() {
     l.SetOutput(&buff)
 
     return func() {
-        t.Log(buff)
+        t.Log(string(buff.Bytes()))
         l.SetOutput(log_w)
     }
 }

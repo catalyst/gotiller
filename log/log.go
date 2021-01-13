@@ -26,19 +26,19 @@ func (l *Logger) shouldDebug() bool { return (l.Flags() & Ldebug) != 0 }
 
 func (l *Logger) Debug(v ...interface{}) {
     if l.shouldDebug() {
-        l.Print(v)
+        l.Print(v...)
     }
 }
 
 func (l *Logger) Debugln(v ...interface{}) {
     if l.shouldDebug() {
-        l.Println(v)
+        l.Println(v...)
     }
 }
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
     if l.shouldDebug() {
-        l.Printf(format, v)
+        l.Printf(format, v...)
     }
 }
 
