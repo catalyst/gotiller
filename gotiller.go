@@ -434,9 +434,9 @@ func (gt *GoTiller) Deploy(tpl string, target *Target, target_base_dir string) {
             err error
         )
         if target.User == "" {
-            u, err = user.Lookup(target.User)
-        } else {
             u, err = user.Current()
+        } else {
+            u, err = user.Lookup(target.User)
         }
         if err != nil {
             panic(err)

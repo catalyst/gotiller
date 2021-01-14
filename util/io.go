@@ -2,6 +2,7 @@ package util
 
 import (
     "os"
+    "time"
     "fmt"
     "io/ioutil"
     "bufio"
@@ -52,6 +53,23 @@ func Mkdir(path string) {
 
     if err := os.MkdirAll(path, os.FileMode(0755)); err != nil {
         panic(err)
+    }
+}
+
+func Touch(path string) {
+    if _, err := os.Stat(path); os.IsNotExist(err) {
+        file, err := os.Create(path)
+        if err != nil {
+            panic(err)
+        }
+        if err := file.Close(); err != nil {
+            panic(err)
+        }
+    } else {
+        now := time.Now().Local()
+        if err := os.Chtimes(path, now, now); err != nil {
+            panic(err)
+        }
     }
 }
 

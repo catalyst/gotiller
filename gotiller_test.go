@@ -2,6 +2,8 @@ package gotiller
 
 import (
     "os"
+    "os/user"
+    "syscall"
     "io/ioutil"
     "path/filepath"
     "fmt"
@@ -158,9 +160,13 @@ func clear_env(prefix string) {
 }
 
 const perms = os.FileMode(0600)
+const os_user = "nobody"
+const os_group = "nogroup"
 var target = Target {
     Target: "/etc/dummy/target.conf",
     Perms : perms,
+    User: os_user,
+    Group: os_group,
     Vars  : Vars {
         "varT": "valT",
         "varA": "valTA",
@@ -218,6 +224,50 @@ var (
     _, b, _, _ = runtime.Caller(0)
     base_dir   = filepath.Dir(b)
 )
+
+func Test_chown(t *testing.T) {
+    t.Cleanup(util.SupressLogForTest(t, logger))
+
+    u, err := user.Current()
+    if err != nil {
+        panic(err)
+    }
+
+    if u.Username != "root" {
+        t.Skipf("Running as %s (not root)", u.Username)
+    }
+
+    dir := t.TempDir()
+    templates_dir := filepath.Join(dir, TemplatesSubdir)
+    util.Mkdir(templates_dir)
+
+    tpl := "target.conf"
+    tpl_path := filepath.Join(templates_dir, tpl)
+    util.Touch(tpl_path)
+
+    gt := New(dir)
+    gt.Deploy(tpl, &target, "")
+
+    stat, err := os.Stat(target.Target)
+    if err != nil {
+        panic(err)
+    }
+    assert.Equal(t, perms, stat.Mode(), "generated file mode (permissions)")
+
+    sys_stat := stat.Sys().(*syscall.Stat_t)
+
+    sys_user, err := user.LookupId(fmt.Sprint(sys_stat.Uid))
+    if err != nil {
+        panic(err)
+    }
+    assert.Equal(t, os_user, sys_user.Username, "generated file owner")
+
+    sys_group, err := user.LookupGroupId(fmt.Sprint(sys_stat.Gid))
+    if err != nil {
+        panic(err)
+    }
+    assert.Equal(t, os_group, sys_group.Name, "generated file group")
+}
 
 const x_val = "v_from_env_x"
 
