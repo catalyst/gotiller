@@ -241,7 +241,7 @@ func Test_Execute(t *testing.T) {
     }
 
     conf_dir := t.TempDir()
-    assert.PanicsWithValue(t, "No environments found in " + conf_dir, func () {
+    assert.PanicsWithValue(t, "Nothing to do\n", func () {
         target_dir := t.TempDir()
         Execute(conf_dir, "blah", target_dir, true)
     }, "Execute() in bogus directory")

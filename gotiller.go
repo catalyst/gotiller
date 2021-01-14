@@ -106,11 +106,6 @@ type Config struct {
     EnvVarsPrefix      string    `yaml:"env_vars_prefix"`
     Environments       map[string]Templates
 }
-func (c *Config) init() {
-    if c.Environments == nil {
-        c.Environments = make(map[string]Templates)
-    }
-}
 func (c *Config) merge(configs ...*Config) {
     for _, config := range configs {
         if config == nil {
@@ -202,7 +197,6 @@ func (gt *GoTiller) init() {
         logger.Debugf("No main config %s\n", ConfigFname)
         config = new(Config)
     }
-    config.init()
 
     config_pattern := filepath.Join(gt.Dir, ConfigD, "*" + ConfigSuffix)
     if matches, _ := filepath.Glob(config_pattern); matches != nil {
@@ -214,19 +208,6 @@ func (gt *GoTiller) init() {
             c := slurp_config(m)
             config.merge(c)
         }
-    }
-
-    environment_pattern := filepath.Join(gt.Dir, EnvironmentsSubdir, "*" + ConfigSuffix)
-    if matches, _ := filepath.Glob(environment_pattern); matches != nil {
-        for _, m := range matches {
-            environment := strings.TrimSuffix(filepath.Base(m), ConfigSuffix)
-            if _, exists := config.Environments[environment]; !exists {
-                config.Environments[environment] = make(Templates)
-            }
-        }
-    }
-    if len(config.Environments) == 0 {
-        logger.Panicf("No environments found in %s", gt.Dir)
     }
 
     gt.Config = config
@@ -247,10 +228,25 @@ func New(dir string) *GoTiller {
 }
 
 func (gt *GoTiller) ListEnvironments() []string {
-    var environments_s []string
+    environments := make(map[string]bool)
+
     for e, _ := range gt.Environments {
+        environments[e] = true
+    }
+
+    environment_pattern := filepath.Join(gt.Dir, EnvironmentsSubdir, "*" + ConfigSuffix)
+    if matches, _ := filepath.Glob(environment_pattern); matches != nil {
+        for _, m := range matches {
+            e := strings.TrimSuffix(filepath.Base(m), ConfigSuffix)
+            environments[e] = true
+        }
+    }
+
+    var environments_s []string
+    for e, _ := range environments {
         environments_s = append(environments_s, e)
     }
+
     return environments_s
 }
 
@@ -354,11 +350,18 @@ func (gt *GoTiller) Execute(environment string, target_base_dir string) {
             environment = gt.Config.DefaultEnvironment
             logger.Println("Executing for default environment")
         } else {
-            logger.Panicln("Environment not specified")
+            if gt.Config.Defaults == nil {
+                logger.Panicln("Environment not specified and there is no defaults")
+            }
         }
     }
 
     logger.Printf("Executing for %s\n", environment)
+
+    templates := gt.Templates(environment)
+    if len(templates) == 0 {
+        logger.Panicln("Nothing to do")
+    }
 
     var wg sync.WaitGroup
     error_ch := make(chan string)
@@ -369,7 +372,7 @@ func (gt *GoTiller) Execute(environment string, target_base_dir string) {
         }
     }()
 
-    for tpl, target := range gt.Templates(environment)  {
+    for tpl, target := range templates {
         wg.Add(1)
         // Need to pass params, cause loop params are volatile.
         go func(tpl string, target *Target) {
