@@ -5,14 +5,14 @@ IMAGE=go-1.15
 WORKDIR=/gotiller
 
 DIR=`dirname $0`
-if [ "$DIR" = "." ]
+if [ "${DIR%%/}" = "." ]
 then
-    DIR=$PWD
+    DIR=$PWD/$DIR
 fi
 
-DOCKER_BASE=$DIR/docker-$IMAGE
-docker build -q -t $IMAGE $DOCKER_BASE
+docker build -q -t $IMAGE -f Dockerfile.$IMAGE $DIR
 
-PKGDIR=$DIR/pkg-cache
+PKGDIR=/tmp/$USER/pkg-cache
+mkdir -p $PKGDIR
 
 docker run --rm -v $DIR:$WORKDIR -v $PKGDIR:/go/pkg -w $WORKDIR $IMAGE "$@"
