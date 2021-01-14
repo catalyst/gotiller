@@ -1,0 +1,18 @@
+# Use transparently: container-run go test, container-run ./cover, container-run go build etc.
+
+IMAGE=go-1.15
+
+WORKDIR=/gotiller
+
+DIR=`dirname $0`
+if [ "$DIR" = "." ]
+then
+    DIR=$PWD
+fi
+
+DOCKER_BASE=$DIR/docker-$IMAGE
+docker build -q -t $IMAGE $DOCKER_BASE
+
+PKGDIR=$DIR/pkg-cache
+
+docker run --rm -v $DIR:$WORKDIR -v $PKGDIR:/go/pkg -w $WORKDIR $IMAGE "$@"
