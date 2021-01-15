@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# It is best to run this on tests that pass
+# It is best to run this after tests have passed
 
 TMP_FNAME=/tmp/cover.out
 

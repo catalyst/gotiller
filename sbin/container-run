@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Use transparently: container-run go test, container-run ./cover, container-run go build etc.
+
+IMAGE=go-1.15
+
+WORKDIR=/gotiller
+
+BASE_DIR=`dirname $0`/..
+if [ "${BASE_DIR%%/*}" = "." ]
+then
+    BASE_DIR=$PWD/$BASE_DIR
+fi
+
+docker build -q -t $IMAGE -f Dockerfile.$IMAGE $BASE_DIR
+
+PKGDIR=/tmp/$USER/pkg-cache
+mkdir -p $PKGDIR
+
+echo Running \""$@"\" in $IMAGE
+docker run --rm -v $BASE_DIR:$WORKDIR -v $PKGDIR:/go/pkg -v $BASE_DIR/sbin:/usr/local/sbin -w $WORKDIR $IMAGE "$@"

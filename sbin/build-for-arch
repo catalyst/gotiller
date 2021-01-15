@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Currently only linux OS
+set -e
+
+make test LOCAL=1
+if [ "$*" = "" ]
+then
+    echo Building for default architecture
+    make -f Makefile.build
+    exit
+fi
+
+for arch in $*; do
+    echo Building for architecture $arch
+    make -f Makefile.build GOARCH=$arch
+done

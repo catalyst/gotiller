@@ -1,0 +1,25 @@
+PACKAGE := github.com/catalyst/gotiller
+
+SRC := $(wildcard *.go) $(wildcard util/*.go) $(wildcard log/*.go)
+
+ifeq ($(strip $(GOARCH)),)
+    GOARCH := $(shell go env GOARCH)
+endif
+
+OUT_DIR := bin/$(GOARCH)
+BINARIES := $(OUT_DIR)/gotiller $(OUT_DIR)/tiller2go
+
+define GO_BUILD =
+    mkdir -p $(OUT_DIR)
+    go build -o $@ github.com/catalyst/gotiller/command/$(@F)
+endef
+
+.PHONY: build
+
+build: $(BINARIES)
+
+$(OUT_DIR)/gotiller: $(SRC)
+	$(GO_BUILD)
+
+$(OUT_DIR)/tiller2go: $(SRC) convert/*.go
+	$(GO_BUILD)
