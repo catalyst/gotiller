@@ -1,0 +1,3 @@
+tpl.conf:
+    vars:
+        x: v_env1_x

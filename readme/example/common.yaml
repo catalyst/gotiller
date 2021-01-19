@@ -1,0 +1,33 @@
+default_vars:
+    v1: v_default_1
+    v2: v_default_2
+    v3: v_default_3
+
+defaults:
+    tpl.conf:
+        target: /app/a.conf
+        vars:
+            v_true_1: "A string"
+            v_true_2: 1
+            v_false_1: ""
+            v1: v_template_default_1
+            v2: v_template_default_2
+
+env_vars_prefix: env_
+
+default_environment: e1
+
+environments:
+    e1:
+        tpl.conf:
+            vars:
+                v2: v_common_e1_2
+                x: v_common_e1_x
+                y: v_common_e1_y
+    e2:
+        tpl.conf:
+            vars:
+                v1: v_common_e2_1
+                v3: v_common_e2_3
+                x: v_common_e2_x
+                z: v_common_e2_z

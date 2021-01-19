@@ -230,40 +230,7 @@ taken from the Working Templates
 
 **`common.conf`**
 ```
-default_vars:
-    v1: v_default_1
-    v2: v_default_2
-    v3: v_default_3
-
-defaults:
-    tpl.conf:
-        target: /app/a.conf
-        vars:
-            v_true_1: "A string"
-            v_true_2: 1
-            v_false_1: ""
-            v1: v_template_default_1
-            v2: v_template_default_2
-
-env_vars_prefix: env_
-
-default_environment: e1
-
-environments:
-    e1:
-        tpl.conf:
-            vars:
-                v2: v_common_e1_2
-                x: v_common_e1_x
-                y: v_common_e1_y
-    e2:
-        tpl.conf:
-            vars:
-                v1: v_common_e2_1
-                v3: v_common_e2_3
-                x: v_common_e2_x
-                z: v_common_e2_z
-
+{{example/common.yaml}}
 ```
 
 **`conf.d/xyz.yaml`**
@@ -273,67 +240,22 @@ environments:
 
 **`environments/e1.yaml`**
 ```
-tpl.conf:
-    vars:
-        x: v_env1_x
-
+{{example/environments/e1.yaml}}
 ```
 
 **Running env**
 ```
-env_y=v_env_y
-
+{{example/env.vars}}
 ```
 
 #### Template
 ```
-# Config for app
-
-{{if and .v_true_1 (not .v_false_1) -}}
-
-param_1_that_shows="{{.v1}} from common.yaml.defaults"
-
-  {{- if and .v_true_1 .v_false_1}}
-
-some_param="This won't show"
-
-  {{- end}}
-  {{- if or (and .v_true_1 .v_false_1) (not (and .v_true_2 .v_false_2))}}
-
-param_2_that_shows="{{.v2}} from common.yaml environments e1"
-
-  {{- end}}
-
-{{- /* Tihs is a comment.
-       On multiple lines. */ -}}
-{{- end}}
-
-param_3="{{.v3}} from common.yaml default_vars"
-
-param_x="{{.x}} from environments/e1"
-
-param_y="{{.y}} from env"
-
-param_z="{{.z}} from conf.d/xyz.yaml defaults"
-
+{{example/templates/tpl.conf}}
 ```
 
 #### Result
 ```
-# Config for app
-
-param_1_that_shows="v_template_default_1 from common.yaml.defaults"
-
-param_2_that_shows="v_common_e1_2 from common.yaml environments e1"
-
-param_3="v_default_3 from common.yaml default_vars"
-
-param_x="v_env1_x from environments/e1"
-
-param_y="v_env_y from env"
-
-param_z="v_default_z from conf.d/xyz.yaml defaults"
-
+{{example/app/a.conf}}
 ```
 
 CLI
