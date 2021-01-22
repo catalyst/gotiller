@@ -8,10 +8,6 @@ type Logger struct {
     *std_log.Logger
 }
 
-func New() *Logger {
-    return &Logger{ std_log.New(std_log.Writer(), "", 0) }
-}
-
 func (l *Logger) SetDebug(dbg bool) bool {
     flags := l.Flags()
     if dbg {
@@ -48,3 +44,9 @@ func (l *Logger) WithDebug(f func ()) {
 
     f()
 }
+
+func New() *Logger {
+    return &Logger{ std_log.New(std_log.Writer(), "", 0) }
+}
+
+var DefaultLogger = New()

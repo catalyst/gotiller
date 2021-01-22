@@ -10,6 +10,7 @@ import (
     "os"
 
     "github.com/catalyst/gotiller"
+    "github.com/catalyst/gotiller/sources"
     "github.com/spf13/pflag"
 )
 
@@ -22,7 +23,7 @@ func main() {
     verbose_p := pflag.BoolP("verbose", "v", false, "verbose")
     pflag.Usage = func() {
         fmt.Println("Usage:")
-        fmt.Println(os.Args[0] + " [--config-dir|-d path] [--output-base-dir|o path] [--verbose|v] --environment|-e environment")
+        fmt.Println(os.Args[0] + " [--config-dir|-d path] [--output-base-dir|-o path] [--verbose|v] --environment|-e environment")
         pflag.PrintDefaults()
         fmt.Println()
     }
@@ -36,7 +37,7 @@ func main() {
     }()
 
     if *dir_p == "" {
-        if _, err := os.Stat(gotiller.ConfigFname); err == nil {
+        if _, err := os.Stat(sources.ConfigFname); err == nil {
             *dir_p = "."
         } else {
             *dir_p = ConfigEtcPath

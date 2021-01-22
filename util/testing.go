@@ -1,8 +1,8 @@
 package util
 
 import (
-    "testing"
     "bytes"
+    "testing"
 
     "github.com/catalyst/gotiller/log"
 )

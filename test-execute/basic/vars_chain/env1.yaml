@@ -1,32 +1,32 @@
 if-and-or-not.conf:
     -
-        source: "config default_vars"
+        source: "default_vars vars"
         vars:
             v0: v_default_0
             x: v_default_x
             y: v_default_y
             z: v_default_z
     -
-        source: "config defaults"
+        source: "defaults"
         vars:
             v_false_1: ""
             v_true_1: "A string"
             v_true_2: "1"
     -
-        source: "env"
+        source: "env_vars_prefix vars"
         vars:
             x: v_from_env_x
 
 t1.conf:
     -
-        source: "config default_vars"
+        source: "default_vars vars"
         vars:
             v0: v_default_0
             x: v_default_x
             y: v_default_y
             z: v_default_z
     -
-        source: "config defaults"
+        source: "defaults"
         vars:
             v1: v_template_default_t1_1
             v2: v_template_default_t1_2
@@ -35,32 +35,32 @@ t1.conf:
             y: v_template_default_t1_y
             z: v_template_default_t1_z
     -
-        source: "config environments env1"
+        source: "environments"
         vars:
             v1: v_common_env1_t1_1
             v2: v_common_env1_t1_2
             x: v_common_env1_t1_x
             y: v_common_env1_t1_y
     -
-        source: "environment env1"
+        source: "filesystem"
         vars:
             v1: v_env1_t1_1
             x: v_env1_t1_x
     -
-        source: "env"
+        source: "env_vars_prefix vars"
         vars:
             x: v_from_env_x
 
 t2.ini:
     -
-        source: "config default_vars"
+        source: "default_vars vars"
         vars:
             v0: v_default_0
             x: v_default_x
             y: v_default_y
             z: v_default_z
     -
-        source: "config defaults"
+        source: "defaults"
         vars:
             v1: v_template_default_t2_1
             v2: v_template_default_t2_2
@@ -69,32 +69,32 @@ t2.ini:
             y: v_template_default_t2_y
             z: v_template_default_t2_z
     -
-        source: "environment env1"
+        source: "filesystem"
         vars:
             v1: v_env1_t2_1
             x: v_env1_t2_x
     -
-        source: "env"
+        source: "env_vars_prefix vars"
         vars:
             x: v_from_env_x
 
 t3.conf:
     -
-        source: "config default_vars"
+        source: "default_vars vars"
         vars:
             v0: v_default_0
             x: v_default_x
             y: v_default_y
             z: v_default_z
     -
-        source: "environment env1"
+        source: "filesystem"
         vars:
             v1: v_env1_t3_1
             v2: v_env1_t3_2
             v3: v_env1_t3_3
             x: v_env1_t3_x
     -
-        source: "env"
+        source: "env_vars_prefix vars"
         vars:
             x: v_from_env_x
 

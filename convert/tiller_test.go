@@ -9,7 +9,7 @@ import (
 
     "gopkg.in/yaml.v3"
 
-    "github.com/catalyst/gotiller"
+    "github.com/catalyst/gotiller/sources"
     "github.com/catalyst/gotiller/util"
 )
 
@@ -36,27 +36,28 @@ environments:
 
 blah:
 `
-var c1 = AnyMap {
-    "default_vars": AnyMap {
+var c1_templates = []string{"db.erb"}
+var c1 = util.AnyMap {
+    "default_vars": util.AnyMap {
         "db_hostname": "localhost",
     },
-    "defaults": AnyMap {
-        "db.ini": AnyMap {
+    "defaults": util.AnyMap {
+        "db.ini": util.AnyMap {
             "target": "db.ini",
         },
     },
-    "environments": AnyMap {
+    "environments": util.AnyMap {
         "development": nil,
-        "production": AnyMap {
-            "db.ini": AnyMap {
-                "vars": AnyMap {
+        "production": util.AnyMap {
+            "db.ini": util.AnyMap {
+                "vars": util.AnyMap {
                     "db_hostname": "db.prod.example.com",
                 },
             },
         },
-        "staging": AnyMap {
-            "db.ini": AnyMap {
-                "vars": AnyMap {
+        "staging": util.AnyMap {
+            "db.ini": util.AnyMap {
+                "vars": util.AnyMap {
                     "db_hostname": "db.staging.example.com",
                 },
             },
@@ -99,10 +100,17 @@ appname = "blah"
 }
 func Test_Converter(t *testing.T) {
     source_dir := t.TempDir()
-    source_config_path := filepath.Join(source_dir, gotiller.ConfigFname)
+
+    source_config_path := filepath.Join(source_dir, sources.ConfigFname)
     util.WriteFile(source_config_path, []byte(c1_tiller))
 
-    config := make(AnyMap)
+    source_templates_path := filepath.Join(source_dir, sources.TemplatesSubdir)
+    util.Mkdir(source_templates_path)
+    for _, t := range c1_templates {
+        util.Touch(filepath.Join(source_templates_path, t))
+    }
+
+    config := make(util.AnyMap)
     if err := yaml.Unmarshal([]byte(c1_tiller), config); err != nil {
         panic(err)
     }

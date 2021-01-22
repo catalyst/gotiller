@@ -3,19 +3,17 @@ package convert
 import (
     "log"
     "os"
-    "io/ioutil"
     "path/filepath"
     "strings"
     "regexp"
     "text/template"
 
-    "github.com/catalyst/gotiller"
     "github.com/catalyst/gotiller/util"
+    "github.com/catalyst/gotiller/sources"
 )
 
 const ConfigEtcPath = "/etc/tiller"
 
-type AnyMap = map[string]interface{}
 type RenamedTemplates = map[string]string
 
 type Converter struct {
@@ -33,10 +31,13 @@ func (c *Converter) init() {
     Proper thing would be to convert without template renaming first,
     then rename. But this is good enough.
     */
-    gt := gotiller.New(c.SourceDir)
-    for _, e := range gt.ListEnvironments() {
-        for template, target := range gt.Templates(e) {
-            c.RenameTemplate(template, target.Target)
+    processor := sources.LoadConfigsFromDir(c.SourceDir)
+    environments := processor.ListEnvironments()
+    for _, e := range environments {
+        for name, d := range processor.Deployables(e) {
+            if t := d.Target; t != "" {
+                c.RenameTemplate(name, t)
+            }
         }
     }
 }
@@ -101,7 +102,7 @@ func Convert(in_dir string, out_dir string, strip_var_prefix string) {
     }
 
     if in_dir == "" {
-        if _, err := os.Stat(gotiller.ConfigFname); err == nil {
+        if _, err := os.Stat(sources.ConfigFname); err == nil {
             in_dir = "."
         } else {
             in_dir = ConfigEtcPath
@@ -113,45 +114,42 @@ func Convert(in_dir string, out_dir string, strip_var_prefix string) {
 }
 
 func (c *Converter) ConvertMainConfig() {
-    tiller_config_path := filepath.Join(c.SourceDir, gotiller.ConfigFname)
+    tiller_config_path := filepath.Join(c.SourceDir, sources.ConfigFname)
 
     if _, err := os.Stat(tiller_config_path); err == nil {
-        converted_config_path := filepath.Join(c.TargetDir, gotiller.ConfigFname)
+        converted_config_path := filepath.Join(c.TargetDir, sources.ConfigFname)
 
         c.convert_config_file(tiller_config_path, converted_config_path)
     }
 }
 
 func (c *Converter) ConvertConfigD() {
-    tiller_config_subdir := filepath.Join(c.SourceDir, gotiller.ConfigD)
+    tiller_config_subdir := filepath.Join(c.SourceDir, sources.ConfigD)
 
     if _, err := os.Stat(tiller_config_subdir); err == nil {
-        dir_entries, err := ioutil.ReadDir(tiller_config_subdir)
-        if err != nil {
-            log.Panic(err)
-        }
-
-        converted_config_subdir := filepath.Join(c.TargetDir, gotiller.ConfigD)
+        converted_config_subdir := filepath.Join(c.TargetDir, sources.ConfigD)
         util.Mkdir(converted_config_subdir)
 
-        for _, entry := range dir_entries {
-            tiller_config_path := filepath.Join(tiller_config_subdir, entry.Name())
-            converted_config_path := filepath.Join(converted_config_subdir, entry.Name())
+        for _, entry := range util.ReadDir(tiller_config_subdir) {
+            t := entry.Name()
+
+            tiller_config_path := filepath.Join(tiller_config_subdir, t)
+            converted_config_path := filepath.Join(converted_config_subdir, t)
             c.convert_config_file(tiller_config_path, converted_config_path)
         }
     }
 }
 
 func (c *Converter) convert_config_file(in_path string, out_path string) {
-    config := make(AnyMap)
+    config := make(util.AnyMap)
     util.ReadYaml(in_path, config)
 
     c.convert_config(config)
     util.WriteYaml(out_path, config)
 }
 
-func (c *Converter) convert_config(config AnyMap) {
-    var default_vars AnyMap
+func (c *Converter) convert_config(config util.AnyMap) {
+    var default_vars util.AnyMap
 
     for k, v := range config {
         switch k {
@@ -164,20 +162,20 @@ func (c *Converter) convert_config(config AnyMap) {
                 delete(config, k)
 
             case "defaults":
-                if g, exists := v.(AnyMap)["global"]; exists {
+                if g, exists := v.(util.AnyMap)["global"]; exists {
                     // defaults.global -> default_vars
-                    default_vars = c.convert_vars(g.(AnyMap))
-                    delete(v.(AnyMap), "global")
+                    default_vars = c.convert_vars(g.(util.AnyMap))
+                    delete(v.(util.AnyMap), "global")
                 }
 
                 if v != nil {
-                    config["defaults"] = c.convert_environment(v.(AnyMap))
+                    config["defaults"] = c.convert_environment(v.(util.AnyMap))
                 }
 
             case "environments":
-                for e, templates := range v.(AnyMap) {
+                for e, templates := range v.(util.AnyMap) {
                     if templates != nil {
-                        v.(AnyMap)[e] = c.convert_environment(templates.(AnyMap))
+                        v.(util.AnyMap)[e] = c.convert_environment(templates.(util.AnyMap))
                     }
                 }
 
@@ -192,62 +190,59 @@ func (c *Converter) convert_config(config AnyMap) {
 }
 
 func (c *Converter) ConvertEnvironments() {
-    tiller_environments_subdir := filepath.Join(c.SourceDir, gotiller.EnvironmentsSubdir)
+    tiller_environments_subdir := filepath.Join(c.SourceDir, sources.EnvironmentsSubdir)
 
     if _, err := os.Stat(tiller_environments_subdir); err == nil {
-        dir_entries, err := ioutil.ReadDir(tiller_environments_subdir)
-        if err != nil {
-            log.Panic(err)
-        }
-
-        converted_environments_subdir := filepath.Join(c.TargetDir, gotiller.EnvironmentsSubdir)
+        converted_environments_subdir := filepath.Join(c.TargetDir, sources.EnvironmentsSubdir)
         util.Mkdir(converted_environments_subdir)
 
-        for _, entry := range dir_entries {
-            tiller_config_path := filepath.Join(tiller_environments_subdir, entry.Name())
-            converted_config_path := filepath.Join(converted_environments_subdir, entry.Name())
+        for _, entry := range util.ReadDir(tiller_environments_subdir) {
+            t := entry.Name()
+
+            tiller_config_path := filepath.Join(tiller_environments_subdir, t)
+            converted_config_path := filepath.Join(converted_environments_subdir, t)
             c.convert_environment_config_file(tiller_config_path, converted_config_path)
         }
     }
 }
 
 func (c *Converter) convert_environment_config_file(in_path string, out_path string) {
-    config := make(AnyMap)
+    config := make(util.AnyMap)
     util.ReadYaml(in_path, config)
 
     c.convert_environment(config)
     util.WriteYaml(out_path, config)
 }
 
-func (c *Converter) convert_environment(templates AnyMap) AnyMap {
-    converted := make(AnyMap)
+func (c *Converter) convert_environment(templates util.AnyMap) util.AnyMap {
+    converted := make(util.AnyMap)
 
     for t, target := range templates {
         new_t := c.RenamedTemplate(t)
 
-        c.convert_target(target.(AnyMap))
+        c.convert_target(target.(util.AnyMap))
         converted[new_t] = target
     }
 
     return converted
 }
 
-func (c *Converter) convert_target(target AnyMap) {
+func (c *Converter) convert_target(target util.AnyMap) {
     for k, v := range target {
         switch k {
             case "config":  // config -> vars
-                target["vars"] = c.convert_vars(v.(AnyMap))
+                target["vars"] = c.convert_vars(v.(util.AnyMap))
                 delete(target, k)
         }
     }
 }
 
-func (c *Converter) convert_vars(vars AnyMap) AnyMap {
+func (c *Converter) convert_vars(vars util.AnyMap) util.AnyMap {
     if c.StripVarPrefix == "" {
         return vars
     }
 
-    new_vars := make(AnyMap)
+    new_vars := make(util.AnyMap)
     for v, val := range vars {
         new_vars[strings.TrimPrefix(v, c.StripVarPrefix)] = val
     }
@@ -255,16 +250,11 @@ func (c *Converter) convert_vars(vars AnyMap) AnyMap {
 }
 
 func (c *Converter) ConvertTemplates() {
-    tiller_templates_subdir := filepath.Join(c.SourceDir, gotiller.TemplatesSubdir)
-    converted_templates_subdir := filepath.Join(c.TargetDir, gotiller.TemplatesSubdir)
+    tiller_templates_subdir := filepath.Join(c.SourceDir, sources.TemplatesSubdir)
+    converted_templates_subdir := filepath.Join(c.TargetDir, sources.TemplatesSubdir)
     util.Mkdir(converted_templates_subdir)
 
-    dir_entries, err := ioutil.ReadDir(tiller_templates_subdir)
-    if err != nil {
-        log.Panic(err)
-    }
-
-    for _, entry := range dir_entries {
+    for _, entry := range util.ReadDir(tiller_templates_subdir) {
         t := entry.Name()
         tiller_template_path := filepath.Join(tiller_templates_subdir, t)
 

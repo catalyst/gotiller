@@ -56,6 +56,14 @@ func Mkdir(path string) {
     }
 }
 
+func ReadDir(path string) []os.FileInfo {
+    dir_entries, err := ioutil.ReadDir(path);
+    if err != nil {
+        panic(err)
+    }
+    return dir_entries
+}
+
 func Touch(path string) {
     if _, err := os.Stat(path); os.IsNotExist(err) {
         file, err := os.Create(path)
@@ -81,4 +89,21 @@ func PrintDirTree(root string) error {
         fmt.Println(path, info.Size())
         return nil
     })
+}
+
+func ResolveLink(path string) string {
+    stat, err := os.Lstat(path)
+    if err != nil {
+        panic(err)
+    }
+    if stat.Mode() & os.ModeSymlink != 0 {
+        if l_path, err := os.Readlink(path); err != nil {
+            if filepath.IsAbs(l_path) {
+                return l_path
+            }
+            return filepath.Join(filepath.Dir(path), l_path)
+        }
+        panic(err)
+    }
+    return path
 }
