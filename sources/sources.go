@@ -18,6 +18,7 @@ var logger = log.DefaultLogger
 
 var FuncMap = template.FuncMap{
     "sequence": util.Sequence,
+    "hash"    : util.Hash,
 }
 
 type Vars      map[string]string

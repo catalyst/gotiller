@@ -1,0 +1,7 @@
+defaults:
+    functions.example:
+        target: /examples/functions.example
+        vars:
+            v_true_1: "A string"
+            v_true_2: 1
+            v_false_1: ""

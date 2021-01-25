@@ -10,3 +10,13 @@ Line 3 that shows
 {{- /* Line below, {{- end -}} strips something that I don't know what it is and fails the test.
        Beats me, expected file does not seem to have a trailing <nl> */ -}}
 {{- end}}
+
+{{/* Funtion sequence and loop.
+     This demonstrates saving current level when changing . */}}
+{{- $save := . -}}
+{{- range sequence 0 3 -}}
+{{$save.z}}{{.}}
+{{end -}}
+
+{{- /* Funtion hash */}}
+{{hash "Hash me"}}

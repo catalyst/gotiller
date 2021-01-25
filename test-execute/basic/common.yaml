@@ -5,14 +5,6 @@ default_vars:
     z: v_default_z
 
 defaults:
-    if-and-or-not.function:
-        target: /functions/if-and-or-not.function
-        vars:
-            v_true_1: "A string"
-            v_true_2: 1
-            v_false_1: ""
-    sequence.function:
-        target: /functions/sequence.function
     t1.conf:
         target: /etc/something/t1.conf
         vars:
