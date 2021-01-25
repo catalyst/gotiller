@@ -5,13 +5,14 @@ SRC := $(wildcard *.go) $(wildcard util/*.go) $(wildcard log/*.go)
 ifeq ($(strip $(GOARCH)),)
     GOARCH := $(shell go env GOARCH)
 endif
+CGO_ENABLED := 0
 
 OUT_DIR := bin/$(GOARCH)
 BINARIES := $(OUT_DIR)/gotiller $(OUT_DIR)/tiller2go
 
 define GO_BUILD =
     mkdir -p $(OUT_DIR)
-    go build -o $@ github.com/catalyst/gotiller/command/$(@F)
+    GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_ENABLED) go build -ldflags "-s" -o $@ github.com/catalyst/gotiller/command/$(@F)
 endef
 
 .PHONY: build
