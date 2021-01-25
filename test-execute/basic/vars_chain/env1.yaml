@@ -1,4 +1,4 @@
-if-and-or-not.conf:
+if-and-or-not.function:
     -
         source: "default_vars vars"
         vars:

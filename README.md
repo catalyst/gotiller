@@ -304,7 +304,7 @@ param_2_that_shows="{{.v2}} from common.yaml environments e1"
 
   {{- end}}
 
-{{- /* Tihs is a comment.
+{{- /* This is a comment.
        On multiple lines. */ -}}
 {{- end}}
 
@@ -315,6 +315,13 @@ param_x="{{.x}} from environments/e1"
 param_y="{{.y}} from env"
 
 param_z="{{.z}} from conf.d/xyz.yaml defaults"
+
+{{/* This demonstrates saving current level when changing ".".  If there's no "-" before comment, there can be no space before "/*" */ -}}
+{{- $save := . -}}
+{{- /* range is loop */ -}}
+{{- range sequence 0 3 -}}
+{{$save.z}}
+{{end -}}
 
 ```
 
@@ -333,6 +340,10 @@ param_x="v_env1_x from environments/e1"
 param_y="v_env_y from env"
 
 param_z="v_default_z from conf.d/xyz.yaml defaults"
+
+v_default_z0
+v_default_z1
+v_default_z2
 
 ```
 

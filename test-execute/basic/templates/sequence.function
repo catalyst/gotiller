@@ -1,0 +1,5 @@
+{{- /* This demonstrates saving current level when changing . */}}
+{{- $save := . -}}
+{{- range sequence 0 3 -}}
+{{$save.z}}{{.}}
+{{end -}}

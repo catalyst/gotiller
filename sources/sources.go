@@ -16,7 +16,9 @@ import (
 
 var logger = log.DefaultLogger
 
-var FuncMap = make(template.FuncMap)
+var FuncMap = template.FuncMap{
+    "sequence": util.Sequence,
+}
 
 type Vars      map[string]string
 func (vs *Vars) Merge(vars ...Vars) {
