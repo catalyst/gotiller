@@ -90,65 +90,6 @@ func Test_merge_deployables(t *testing.T) {
     assert.Equal(t, t1_t2, tr, "merge_deployables()")
 }
 
-/*
-var c1 = Config {
-    Defaults          : t1,
-    DefaultVars       : Vars {
-        "varA": "valA1",
-        "varB": "valB1",
-    },
-    DefaultEnvironment: "env1",
-    EnvVarsPrefix     : "prefix1",
-    Environments      : map[string]Deployables {
-        "env1": t1,
-        "env2": t2,
-    },
-}
-var c2 = Config {
-    Defaults          : t2,
-    DefaultVars       : Vars {
-        "varA": "valA2",
-    },
-    DefaultEnvironment: "env2",
-    Environments      : map[string]Deployables {
-        "env1": t2,
-    },
-}
-var c1_c2 = Config {
-    Defaults          : t1_t2,
-    DefaultVars       : Vars {
-        "varA": "valA2",
-        "varB": "valB1",
-    },
-    DefaultEnvironment: "env2",
-    EnvVarsPrefix     : "prefix1",
-    Environments      : map[string]Deployables {
-        "env1": t1_t2,
-        "env2": t2,
-    },
-}
-func Test_config_Merge(t *testing.T) {
-    t.Cleanup(util.SupressLogForTest(t, logger))
-
-    c1.Merge(&c2)
-    assert.Equal(t, c1_c2, c1, "Config.Merge()")
-}
-
-
-func Test_extract_env_vars(t *testing.T) {
-    env_vars_prefix := "gotiller_test_"
-
-    defer clear_env(env_vars_prefix)
-
-    var_a := "a"
-
-    clear_env(env_vars_prefix)
-    os.Setenv(env_vars_prefix + var_a, var_a)
-
-    assert.Equal(t, Vars{var_a: var_a}, extract_env_vars(env_vars_prefix), "env_vars_prefix()")
-}
-*/
-
 const perms = os.FileMode(0600)
 const os_user = "nobody"
 const os_group = "nogroup"
