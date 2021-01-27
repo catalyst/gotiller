@@ -67,6 +67,10 @@ This is a big change.
 
 Conversion will strip `env_vars_prefix` from vars in templates.
 
+#### Plugins
+
+At the moment, only `filesystem` and `environment` sources are implemented.
+
 #### ERB vs Go templates
 
 Apart from the trivial embedding tag difference (`<% %>` pair in ERB vs
@@ -225,6 +229,28 @@ taken from the Working Templates
 
 *env vars* trump Target `vars:` trump `default_vars:`
 
+### Utility functions
+
+Functions that are available in templates to make life easier:
+
+#### `sequence start length`
+
+To be used with `range` to create incremented loops:
+
+    {{range sequence 0 3}}
+    something{{.}}
+    {{end}}
+
+will give `something0 something1 something2`
+
+#### `hash string`
+
+Gives CRC32 hashed value (8 hex digits) of a string.
+
+#### `fexists path`
+
+Returns boolean whether the file specified with path exists. In case of a dir throws an exception.
+
 ### A full blown example
 #### Config
 
@@ -233,9 +259,9 @@ taken from the Working Templates
 {{example/common.yaml}}
 ```
 
-**`conf.d/xyz.yaml`**
+**`config.d/xyz.yaml`**
 ```
-{{example/conf.d/xyz.yaml}}
+{{example/config.d/xyz.yaml}}
 ```
 
 **`environments/e1.yaml`**
@@ -257,6 +283,16 @@ taken from the Working Templates
 ```
 {{example/app/a.conf}}
 ```
+
+Makefile
+--------
+
+`make` builds statically compiled executables for specified arhitectures. If no
+architecture is specified it will build for default architecture (`amd64`). For example:
+
+    make ARCH="amd64 arm"
+
+Binaries are created in the `bin` directory.
 
 CLI
 ---

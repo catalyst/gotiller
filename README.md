@@ -67,6 +67,10 @@ This is a big change.
 
 Conversion will strip `env_vars_prefix` from vars in templates.
 
+#### Plugins
+
+At the moment, only `filesystem` and `environment` sources are implemented.
+
 #### ERB vs Go templates
 
 Apart from the trivial embedding tag difference (`<% %>` pair in ERB vs
@@ -225,6 +229,28 @@ taken from the Working Templates
 
 *env vars* trump Target `vars:` trump `default_vars:`
 
+### Utility functions
+
+Functions that are available in templates to make life easier:
+
+#### `sequence start length`
+
+To be used with `range` to create incremented loops:
+
+    {{range sequence 0 3}}
+    something
+    {{end}}
+
+will give `something0 something1 something2`
+
+#### `hash string`
+
+Gives CRC32 hashed value (8 hex digits) of a string.
+
+#### `fexists path`
+
+Returns boolean whether the file specified with path exists. In case of a dir throws an exception.
+
 ### A full blown example
 #### Config
 
@@ -266,9 +292,13 @@ environments:
 
 ```
 
-**`conf.d/xyz.yaml`**
+**`config.d/xyz.yaml`**
 ```
-{{example/conf.d/xyz.yaml}}
+default_vars:
+    x: v_default_x
+    y: v_default_y
+    z: v_default_z
+
 ```
 
 **`environments/e1.yaml`**
@@ -314,7 +344,7 @@ param_x="{{.x}} from environments/e1"
 
 param_y="{{.y}} from env"
 
-param_z="{{.z}} from conf.d/xyz.yaml defaults"
+param_z="{{.z}} from config.d/xyz.yaml defaults"
 
 {{/* This demonstrates saving current level when changing ".".  If there's no "-" before comment, there can be no space before "/*" */ -}}
 {{- $save := . -}}
@@ -337,15 +367,23 @@ param_3="v_default_3 from common.yaml default_vars"
 
 param_x="v_env1_x from environments/e1"
 
-param_y="v_env_y from env"
+param_y="v_common_e1_y from env"
 
-param_z="v_default_z from conf.d/xyz.yaml defaults"
+param_z="v_default_z from config.d/xyz.yaml defaults"
 
 v_default_z0
 v_default_z1
 v_default_z2
 
 ```
+
+Makefile
+--------
+
+`make` builds statically compiled executables for specified arhitectures. If no
+architecture is specified it will build for default architecture (`amd64`). For example:
+
+    make ARCH="amd64 arm"
 
 CLI
 ---
