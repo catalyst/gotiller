@@ -1,13 +1,9 @@
 package main
 
 import (
-    /*
-    "io"
-    "path/filepath"
-    "text/template"
-    */
     "fmt"
     "os"
+    "log"
 
     "github.com/catalyst/gotiller"
     "github.com/catalyst/gotiller/sources"
@@ -32,7 +28,7 @@ func main() {
     defer func() {
         if r := recover(); r != nil {
             pflag.Usage()
-            panic(r)
+            log.Fatal(r)
         }
     }()
 

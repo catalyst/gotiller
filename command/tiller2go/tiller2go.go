@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "os"
+    "log"
 
     "github.com/catalyst/gotiller/convert"
     "github.com/spf13/pflag"
@@ -24,7 +25,7 @@ func main() {
     defer func() {
         if r := recover(); r != nil {
             pflag.Usage()
-            panic(r)
+            log.Fatal(r)
         }
     }()
 
