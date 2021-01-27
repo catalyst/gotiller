@@ -53,17 +53,17 @@ func (f *FileSystemSource) MergeConfig(origin string, d interface{}) {
         }
     }
 }
-func (f *FileSystemSource) Template(name string) string {
+func (f *FileSystemSource) Template(name string) *Template {
     t, exists := f.Templates[name]
     if !exists {
-        return ""
+        return nil
     }
 
     if t.Content == "" {
         t.Content = string(util.SlurpFile(t.Path))
     }
 
-    return t.Content
+    return t
 }
 func (f *FileSystemSource) AllTemplates() Templates {
     return f.Templates

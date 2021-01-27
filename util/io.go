@@ -64,18 +64,36 @@ func ReadDir(path string) []os.FileInfo {
     return dir_entries
 }
 
+func FileExists(path string) bool {
+    stat, err := os.Stat(path)
+
+    if err != nil {
+        if os.IsNotExist(err) {
+            return false
+        }
+
+        panic(err)
+    }
+
+    if stat.IsDir() {
+        panic(path + " is directory")
+    }
+
+    return true
+}
+
 func Touch(path string) {
-    if _, err := os.Stat(path); os.IsNotExist(err) {
+    if FileExists(path) {
+        now := time.Now().Local()
+        if err := os.Chtimes(path, now, now); err != nil {
+            panic(err)
+        }
+    } else {
         file, err := os.Create(path)
         if err != nil {
             panic(err)
         }
         if err := file.Close(); err != nil {
-            panic(err)
-        }
-    } else {
-        now := time.Now().Local()
-        if err := os.Chtimes(path, now, now); err != nil {
             panic(err)
         }
     }

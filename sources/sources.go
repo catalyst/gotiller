@@ -1,6 +1,7 @@
 package sources
 
 import (
+    "io"
     "os"
     "os/user"
     "sync"
@@ -19,6 +20,7 @@ var logger = log.DefaultLogger
 var FuncMap = template.FuncMap{
     "sequence": util.Sequence,
     "hash"    : util.Hash,
+    "fexists" : util.FileExists,
 }
 
 type Vars      map[string]string
@@ -103,7 +105,7 @@ func (s *Spec) Merge(s1 *Spec) {
         s.Vars.Merge(s1.Vars)
     }
 }
-func (s *Spec) Deploy(tpl_content string, base_dir string) {
+func (s *Spec) Deploy(t *Template, base_dir string) {
     target_path := s.Target
     if target_path == "" {
         panic("No target")
@@ -122,10 +124,7 @@ func (s *Spec) Deploy(tpl_content string, base_dir string) {
         panic(err)
     }
 
-    t_exec := template.Must( template.New("").Funcs(FuncMap).Parse(tpl_content) )
-    if err := t_exec.Execute(out, s.Vars); err != nil {
-        panic(err)
-    }
+    t.Write(out, s.Vars)
 
     if s.Perms != os.FileMode(0) {
         if err := out.Chmod(s.Perms); err != nil {
@@ -249,13 +248,20 @@ type Template struct {
     Path    string
     Content string
 }
+func (t *Template) Write(out io.Writer, v Vars) {
+    t_exec := template.Must( template.New("").Funcs(FuncMap).Parse(t.Content) )
+    if err := t_exec.Execute(out, v); err != nil {
+        panic(err)
+    }
+}
+
 type Templates          map[string]*Template
 
 type SourceInterface interface {
     MergeConfig(origin string, values interface{})
     DeployablesForEnvironment(environment string) Deployables
     DefaultVars()                                 Vars
-    Template(string)                              string
+    Template(string)                              *Template
     AllEnvironments()                             []string
     AllTemplates()                                Templates
 }
@@ -265,7 +271,7 @@ type BaseSource struct {
 }
 func (s *BaseSource) DeployablesForEnvironment(environment string) Deployables { return nil }
 func (s *BaseSource) DefaultVars              ()                   Vars        { return nil }
-func (s *BaseSource) Template                 (n string)           string      { return "" }
+func (s *BaseSource) Template                 (n string)           *Template   { return nil }
 func (s *BaseSource) AllEnvironments          ()                   []string    { return nil }
 func (s *BaseSource) AllTemplates             ()                   Templates   { return nil }
 func MakeBaseSource() BaseSource {
@@ -400,16 +406,16 @@ func (p *Processor) ListTemplates() []map[string]string {
     return tss
 }
 
-func (p *Processor) Template(name string) string {
+func (p *Processor) Template(name string) *Template {
     logger.Debugf("Getting template for %s\n", name)
     last_si := len(p.Sources) - 1
     for i := last_si; i >= 0; i-- {
         si := p.Sources[i]
-        if t := si.Template(name); t != "" {
+        if t := si.Template(name); t != nil {
             return t
         }
     }
-    return ""
+    return nil
 }
 
 func (p *Processor) ListEnvironments() []string {
@@ -456,13 +462,13 @@ func (p *Processor) RunForEnvironment(environment string, target_base_dir string
                 }
             }()
 
-            tpl_content := p.Template(name)
-            if tpl_content == "" {
-                logger.Panicf("No template content for %s", name)
+            t := p.Template(name)
+            if t == nil {
+                logger.Panicf("No template for %s", name)
             }
 
             logger.Printf("Deploying %s\n", name)
-            s.Deploy(tpl_content, target_base_dir)
+            s.Deploy(t, target_base_dir)
         }(n, s)
     }
     wg.Wait()

@@ -4,7 +4,7 @@ import (
     "os"
     "os/user"
     "syscall"
-    // "io/ioutil"
+    "strings"
     "path/filepath"
     "fmt"
 
@@ -167,11 +167,8 @@ func Test_chown(t *testing.T) {
     templates_dir := filepath.Join(dir, TemplatesSubdir)
     util.Mkdir(templates_dir)
 
-    tpl := "target.conf"
-    tpl_path := filepath.Join(templates_dir, tpl)
-    util.Touch(tpl_path)
-
-    spec.Deploy(tpl, "")
+    template := new(Template)
+    spec.Deploy(template, "")
 
     stat, err := os.Stat(spec.Target)
     if err != nil {
@@ -192,4 +189,41 @@ func Test_chown(t *testing.T) {
         panic(err)
     }
     assert.Equal(t, os_group, sys_group.Name, "generated file group")
+}
+
+var function_tests = map[string][2]string {
+    "sequence": {`
+{{range sequence 0 2 -}}
+{{.}}
+{{end -}}
+`, `
+0
+1
+`},
+    "hash": {`
+{{hash "TEST"}}
+`, `
+eeea93b8
+`},
+    "fexists": {`
+{{if fexists "/etc/passwd" -}}
+This must exist
+{{end -}}
+{{if fexists "/blah/blah" -}}
+This cannot exist
+{{end -}}
+`, `
+This must exist
+`},
+}
+func Test_functions(t *testing.T) {
+    t.Cleanup(util.SupressLogForTest(t, logger))
+
+    for fn, test := range function_tests {
+        out := new(strings.Builder)
+        template := &Template{Content: test[0]}
+
+        template.Write(out, nil)
+        assert.Equal(t, test[1], out.String(), fn + " function")
+    }
 }
