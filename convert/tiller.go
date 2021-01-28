@@ -172,6 +172,11 @@ func (c *Converter) convert_config(config util.AnyMap) {
                     config["defaults"] = c.convert_environment(v.(util.AnyMap))
                 }
 
+            case "environment":
+                if prefix , exists := v.(util.AnyMap)["prefix"]; exists {
+                    c.StripVarPrefix = prefix.(string)
+                }
+
             case "environments":
                 for e, templates := range v.(util.AnyMap) {
                     if templates != nil {
