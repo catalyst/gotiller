@@ -3,42 +3,71 @@ package main
 import (
     "fmt"
     "os"
-    "log"
 
     "github.com/catalyst/gotiller"
     "github.com/catalyst/gotiller/sources"
-    "github.com/spf13/pflag"
+    "github.com/catalyst/gotiller/command"
 )
 
 const ConfigEtcPath = "/etc/gotiller"
 
+var command_line_flags = []*command.CommandLineFlag{
+    &command.CommandLineFlag{
+        "config-dir",
+        "d",
+        fmt.Sprintf("gotiller config dir (default . then %s)", ConfigEtcPath),
+        "path",
+        false,
+        "",
+        nil,
+    },
+    &command.CommandLineFlag{
+        "output-base-dir",
+        "o",
+        "root dir for generate files (usually not needed)",
+        "path",
+        false,
+        "",
+        nil,
+    },
+    &command.CommandLineFlag{
+        "verbose",
+        "v",
+        "",
+        "",
+        false,
+        false,
+        nil,
+    },
+}
+var command_line_args = &command.CommandLineArgs{
+    []string{"[environment]"},
+    "If environment is not specified, default_environment from config is assumed",
+    nil,
+}
 func main() {
-    dir_p := pflag.StringP("config-dir",  "d", "", fmt.Sprintf("gotiller config dir (default . then %s)", ConfigEtcPath))
-    target_base_dir_p := pflag.StringP("output-base-dir", "o", "", "root dir for generate files (usually not needed)")
-    env_p := pflag.StringP("environment", "e", "", "environment")
-    verbose_p := pflag.BoolP("verbose", "v", false, "verbose")
-    pflag.Usage = func() {
-        fmt.Println("Usage:")
-        fmt.Println(os.Args[0] + " [--config-dir|-d path] [--output-base-dir|-o path] [--verbose|v] --environment|-e environment")
-        pflag.PrintDefaults()
-        fmt.Println()
-    }
-    pflag.Parse()
+    command.Run(
+        command_line_flags,
+        command_line_args,
+        func() {
+            dir             := *command_line_flags[0].ValueP.(*string)
+            target_base_dir := *command_line_flags[1].ValueP.(*string)
+            verbose         := *command_line_flags[2].ValueP.(*bool)
+            env             := ""
 
-    defer func() {
-        if r := recover(); r != nil {
-            pflag.Usage()
-            log.Fatal(r)
-        }
-    }()
+            if len(command_line_args.Values) > 0 {
+                env = command_line_args.Values[0]
+            }
 
-    if *dir_p == "" {
-        if _, err := os.Stat(sources.ConfigFname); err == nil {
-            *dir_p = "."
-        } else {
-            *dir_p = ConfigEtcPath
-        }
-    }
+            if dir == "" {
+                if _, err := os.Stat(sources.ConfigFname); err == nil {
+                    dir = "."
+                } else {
+                    dir = ConfigEtcPath
+                }
+            }
 
-    gotiller.Execute(*dir_p, *env_p, *target_base_dir_p, *verbose_p)
+            gotiller.Execute(dir, env, target_base_dir, verbose)
+        },
+    )
 }

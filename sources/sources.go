@@ -438,7 +438,10 @@ func (p *Processor) ListEnvironments() []string {
 func (p *Processor) RunForEnvironment(environment string, target_base_dir string) {
     deployables := p.Deployables(environment)
     if len(deployables) == 0 {
-        logger.Panicln("Nothing to do")
+        if environment == "" {
+            logger.Panic("No environment specified - nothing to do")
+        }
+        logger.Panicf("Nothing to do for environment %s", environment)
     }
 
     var wg sync.WaitGroup

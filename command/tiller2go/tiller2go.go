@@ -2,32 +2,41 @@ package main
 
 import (
     "fmt"
-    "os"
-    "log"
 
     "github.com/catalyst/gotiller/convert"
-    "github.com/spf13/pflag"
+    "github.com/catalyst/gotiller/command"
 )
 
+var command_line_flags = []*command.CommandLineFlag{
+    &command.CommandLineFlag{
+        "tiller-config-dir",
+        "t",
+        fmt.Sprintf("tiller config dir (default . then %s)", convert.ConfigEtcPath),
+        "path",
+        false,
+        "",
+        nil,
+    },
+}
+var command_line_args = &command.CommandLineArgs{
+    []string{"output-config-dir-path"},
+    "",
+    nil,
+}
+
 func main() {
-    in_dir_p := pflag.StringP("tiller-config-dir",  "t", "", fmt.Sprintf("tiller config dir (default . then %s)", convert.ConfigEtcPath))
-    strip_var_prefix_p := pflag.StringP("strip-var-prefix",  "s", "", "strip prefix from vars")
-    pflag.Usage = func() {
-        fmt.Println("Usage:")
-        fmt.Println(os.Args[0] + " [--tiller-config-dir|-t path] output-config-dir-path")
-        pflag.PrintDefaults()
-        fmt.Println()
-    }
-    pflag.Parse()
 
-    out_dir_p := pflag.Arg(0)
+    command.Run(
+        command_line_flags,
+        command_line_args,
+        func() {
+            in_dir  := *command_line_flags[0].ValueP.(*string)
+            if len(command_line_args.Values) == 0 {
+                panic("output-config-dir-path must be specified")
+            }
+            out_dir := command_line_args.Values[0]
 
-    defer func() {
-        if r := recover(); r != nil {
-            pflag.Usage()
-            log.Fatal(r)
-        }
-    }()
-
-    convert.Convert(*in_dir_p, out_dir_p, *strip_var_prefix_p)
+            convert.Convert(in_dir, out_dir)
+        },
+    )
 }

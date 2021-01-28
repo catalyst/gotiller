@@ -17,7 +17,8 @@ var (
 )
 
 const x_val = "v_from_env_x"
-const panic_nothing_to_do = "Nothing to do\n"
+const bogus_environment = "blah"
+const panic_nothing_to_do = "Nothing to do for environment " + bogus_environment
 
 func Test_Execute(t *testing.T) {
     t.Cleanup(util.SupressLogForTest(t, logger))
@@ -38,7 +39,7 @@ func Test_Execute(t *testing.T) {
     conf_dir := t.TempDir()
     assert.PanicsWithValue(t, panic_nothing_to_do, func () {
         target_dir := t.TempDir()
-        Execute(conf_dir, "blah", target_dir, true)
+        Execute(conf_dir, bogus_environment, target_dir, true)
     }, "Execute() in bogus directory")
 }
 

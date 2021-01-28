@@ -115,7 +115,7 @@ func Test_Converter(t *testing.T) {
         panic(err)
     }
 
-    converter := NewConverter(source_dir, "/tmp", "env_")
+    converter := NewConverter(source_dir, "/tmp")
     converter.convert_config(config)
 
     assert.Equal(t, c1, config, "convert_config()")

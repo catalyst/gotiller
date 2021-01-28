@@ -71,11 +71,11 @@ func (c *Converter) RenamedTemplate(t string) string {
     return t
 }
 
-func NewConverter(in_dir string, out_dir string, strip_var_prefix string) *Converter {
+func NewConverter(in_dir string, out_dir string) *Converter {
     c := &Converter{
         SourceDir     : in_dir,
         TargetDir     : out_dir,
-        StripVarPrefix: strip_var_prefix,
+        StripVarPrefix: "env_",
     }
     c.init()
     return c
@@ -88,7 +88,7 @@ func (c *Converter) Convert() {
     c.ConvertTemplates()
 }
 
-func Convert(in_dir string, out_dir string, strip_var_prefix string) {
+func Convert(in_dir string, out_dir string) {
     if (out_dir == "") {
         panic("output gotiller config dir not given")
     }
@@ -109,7 +109,7 @@ func Convert(in_dir string, out_dir string, strip_var_prefix string) {
         }
     }
 
-    converter := NewConverter(in_dir, out_dir, strip_var_prefix)
+    converter := NewConverter(in_dir, out_dir)
     converter.Convert()
 }
 
@@ -238,10 +238,6 @@ func (c *Converter) convert_target(target util.AnyMap) {
 }
 
 func (c *Converter) convert_vars(vars util.AnyMap) util.AnyMap {
-    if c.StripVarPrefix == "" {
-        return vars
-    }
-
     new_vars := make(util.AnyMap)
     for v, val := range vars {
         new_vars[strings.TrimPrefix(v, c.StripVarPrefix)] = val
@@ -456,9 +452,7 @@ func (c *Converter) convert_exp(exp string) (string, bool) {
     }
 
     if var_exp_re.MatchString(exp) {
-        if c.StripVarPrefix != "" {
-            exp = strings.TrimPrefix(exp, c.StripVarPrefix)
-        }
+        exp = strings.TrimPrefix(exp, c.StripVarPrefix)
 
         return join_exps("", ".", exp), true
     }
