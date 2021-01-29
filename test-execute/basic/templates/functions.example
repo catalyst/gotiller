@@ -18,5 +18,5 @@ Line 3 that shows
 {{$save.z}}{{.}}
 {{end -}}
 
-{{- /* Funtion hash */}}
-{{hash "Hash me"}}
+{{- /* Funtion timeoffset */}}
+{{timeoffset "Offset me"}}

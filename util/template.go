@@ -1,8 +1,8 @@
 package util
 
 import (
-    "fmt"
     "hash/crc32"
+    "math/rand"
 )
 
 func Sequence(start, length int) []int {
@@ -13,6 +13,10 @@ func Sequence(start, length int) []int {
     return seq
 }
 
-func Hash(in string) string {
-    return fmt.Sprintf("%08x", crc32.ChecksumIEEE( []byte(in) ))
+// seed is not seed at all
+func TimeOffset(seed string) int {
+    if seed == "" {
+        return rand.Intn(60)
+    }
+    return int(crc32.ChecksumIEEE( []byte(seed) ) % 60)
 }

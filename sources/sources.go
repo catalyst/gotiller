@@ -6,7 +6,6 @@ import (
     "os/user"
     "sync"
     "path/filepath"
-    "strconv"
     "sort"
     "fmt"
     "text/template"
@@ -17,53 +16,46 @@ import (
 
 var logger = log.DefaultLogger
 
-var FuncMap = template.FuncMap{
-    "sequence": util.Sequence,
-    "hash"    : util.Hash,
-    "fexists" : util.FileExists,
-}
-
 type Vars      map[string]string
-func (vs *Vars) Merge(vars ...Vars) {
-    r_vars := *vs
-
+func (vs Vars) Merge(vars ...Vars) {
     for _, v := range vars {
         if v == nil {
             continue
         }
 
         for k, val := range v {
-            if ev, exists := r_vars[k]; exists {
+            if ev, exists := vs[k]; exists {
                 if val != ev {
                     logger.Debugf("Changing var %s to %s\n", k, val)
-                    r_vars[k] = val
+                    vs[k] = val
                 }
             } else {
                 logger.Debugf("Setting var %s to %s\n", k, val)
-                r_vars[k] = val
+                vs[k] = val
             }
         }
     }
-
-    *vs = r_vars
 }
-func (vs *Vars) SetMissing(vars ...Vars) {
-    r_vars := *vs
-
+func (vs Vars) SetMissing(vars ...Vars) {
     for _, v := range vars {
         if v == nil {
             continue
         }
 
         for k, val := range v {
-            if _, exists := r_vars[k]; !exists {
+            if _, exists := vs[k]; !exists {
                 logger.Debugf("Setting missing var %s to %s\n", k, val)
-                r_vars[k] = val
+                vs[k] = val
             }
         }
     }
-
-    *vs = r_vars
+}
+func (vs Vars) Clone() Vars {
+    vs_v := make(Vars)
+    for n, v := range vs {
+        vs_v[n] = v
+    }
+    return vs_v
 }
 
 func MakeVars(vs util.AnyMap) Vars {
@@ -155,14 +147,8 @@ func (s *Spec) Deploy(t *Template, base_dir string) {
             gid_s = g.Gid
         }
 
-        uid, err := strconv.Atoi(uid_s)
-        if err != nil {
-            panic(err)
-        }
-        gid, err := strconv.Atoi(gid_s)
-        if err != nil {
-            panic(err)
-        }
+        uid := util.AtoI(uid_s)
+        gid := util.AtoI(gid_s)
         if err = out.Chown(uid, gid); err != nil {
             panic(err)
         }
@@ -249,7 +235,26 @@ type Template struct {
     Content string
 }
 func (t *Template) Write(out io.Writer, v Vars) {
-    t_exec := template.Must( template.New("").Funcs(FuncMap).Parse(t.Content) )
+    func_map := template.FuncMap{
+        "ifnil"      : func(v, d interface{}) interface{} {
+            if v == nil {
+                return d
+            }
+            return v
+        },
+        "iadd"       : func(x, y int) int { return x + y  },
+        "imul"       : func(x, y int) int { return x * y  },
+        "idiv"       : func(x, y int) int { return x / y  },
+        "imod"       : func(x, m int) int { return x % m  },
+        "tostr"      : util.ToString,
+        "strtoi"     : util.AtoI,
+        "sequence"   : util.Sequence,
+        "timeoffset" : util.TimeOffset,
+        "fexists"    : util.FileExists,
+        "val"        : func(var_name string) string { return v[var_name] },
+    }
+
+    t_exec := template.Must( template.New("").Funcs(func_map).Parse(t.Content) )
     if err := t_exec.Execute(out, v); err != nil {
         panic(err)
     }
