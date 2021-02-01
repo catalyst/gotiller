@@ -279,20 +279,18 @@ func (c *Converter) convert_template(content string) string {
 }
 
 var (
-    tag_re = regexp.MustCompile(`<%(#|=|-)?\s*([^%]*?)\s*(-)?%>`)
+    tag_re = regexp.MustCompile(`<%(=|-)?\s*(#\s*)?([^%]*?)\s*(-)?%>`)
     conditional_op_re = regexp.MustCompile(`^([^?]+?)\s+\?\s+(.*?)\s+:\s+(.*)?`)
 )
 func (c *Converter) convert_tag(tag string) string {
     m := tag_re.FindStringSubmatch(tag)
     leader := m[1]
-    content := m[2]
-    end_strip := m[3]
+    comment := m[2]
+    content := m[3]
+    end_strip := m[4]
 
     var front_strip, converted string
     switch leader {
-        case "#":
-            front_strip, end_strip = "-", "-"
-            content = "/* " + content + " */"
         case "=":
             // we can only try ?: conversion for straight output
             if m := conditional_op_re.FindStringSubmatch(content); m != nil {
@@ -302,8 +300,13 @@ func (c *Converter) convert_tag(tag string) string {
 
             converted, _ = c.convert_exp(content)
         default:
-            front_strip = leader
-            converted = c.convert_statement(content)
+            if comment == "" {
+                front_strip = leader
+                converted = c.convert_statement(content)
+            } else {
+                front_strip, end_strip = "-", "-"
+                converted = "/* " + content + " */"
+            }
     }
 
     return join_exps(" ", "{{" + front_strip, converted, end_strip + "}}")
@@ -357,7 +360,9 @@ func (c *Converter) convert_statement(statement string) string {
 const (
     not_op_re            = `(!|not)`
     fn__re               = `(defined\?)`
-    var_re               = `[\w.]+`
+    var_re               = `[A-Za-z][\w.]*`
+    number_re            = `\d*(\.\d+)?`
+    string_re            = `["']([^"']*)["']`
     not_comparison_op_re = `[^=!<>]`
 )
 var (
@@ -384,6 +389,8 @@ var (
     bracket_re        = regexp.MustCompile(`^` + not_op_re + `?` + fn__re + `?` + `?\s*\(\s*(.*)\s*\)$`)
     unary_exp_re      = regexp.MustCompile(`^` + not_op_re + `\s*(` + var_re + `)$`)
     var_exp_re        = regexp.MustCompile(`^` + var_re + `$`)
+    number_exp_re     = regexp.MustCompile(`^` + number_re + `$`)
+    string_exp_re     = regexp.MustCompile(`^` + string_re + `$`)
     comparison_op_re  = regexp.MustCompile(
         `^(` + not_comparison_op_re + `+?)\s*` +
         `(===?|!==?|>|>=|<|<=)` +
@@ -454,6 +461,14 @@ func (c *Converter) convert_exp(exp string) (string, bool) {
 
     if m := unary_exp_re.FindStringSubmatch(exp); m != nil {
         return c.convert_unary_exp(m[1], "", m[2])
+    }
+
+    if number_exp_re.MatchString(exp) {
+        return exp, true
+    }
+
+    if string_exp_re.MatchString(exp) {
+        return exp, true  // XXX convert quotes
     }
 
     if var_exp_re.MatchString(exp) {
