@@ -236,18 +236,17 @@ type Template struct {
 }
 func (t *Template) Write(out io.Writer, v Vars) {
     func_map := template.FuncMap{
-        "ifnil"      : func(v, d interface{}) interface{} {
-            if v == nil {
-                return d
-            }
-            return v
-        },
         "iadd"       : func(x, y int) int { return x + y  },
         "imul"       : func(x, y int) int { return x * y  },
         "idiv"       : func(x, y int) int { return x / y  },
         "imod"       : func(x, m int) int { return x % m  },
         "tostr"      : util.ToString,
         "strtoi"     : util.AtoI,
+        "safe"       : util.SafeValue,
+        "coalesce"   : util.Coalesce,
+        "tolower"    : util.SafeToLower,
+        "regexrepl"  : util.SafeReplaceAllString,
+        "quotedlist" : util.QuotedList,
         "sequence"   : util.Sequence,
         "timeoffset" : util.TimeOffset,
         "fexists"    : util.FileExists,
@@ -459,6 +458,10 @@ func (p *Processor) RunForEnvironment(environment string, target_base_dir string
     }()
 
     for n, s := range deployables {
+        if _, exists := s.Vars["environment"]; !exists {
+            s.Vars["environment"] = environment
+        }
+
         wg.Add(1)
         // Need to pass params, cause loop params are volatile.
         go func(name string, s *Spec) {

@@ -196,7 +196,7 @@ var function_tests = map[string]struct{
     vars     Vars
     out      string
 }{
-    "value": {`
+    "val": {`
 {{  $x := 0 -}}
 {{- $v := printf "var%d" $x -}}
 {{val $v}}`,
@@ -214,8 +214,8 @@ var0`,
 1
 `,
     },
-    "ifnil": {`
-{{ifnil .nonexist 5}}`,
+    "coalesce": {`
+{{coalesce .nonexist 5}}`,
         nil, `
 5`,
     },
@@ -223,6 +223,36 @@ var0`,
 {{tostr .nonexist}}`,
         nil, `
 `,
+    },
+    "tolower_nil": {`
+{{tolower .nonexist}}`,
+        nil, `
+`,
+    },
+    "tolower": {`
+{{tolower ` + "`" + `"FuNnY"` + "`" + `}}`,
+        nil, `
+"funny"`,
+    },
+    "quotedlist_nil": {`
+{{quotedlist .nonexist ","}}`,
+        nil, `
+`,
+    },
+    "quotedlist": {`
+{{quotedlist "one,two" ","}}`,
+        nil, `
+"one", "two"`,
+    },
+    "regexrepl_nil": {`
+{{regexrepl .nonexist ` + "`" + `(\d)` + "` `" + `0$1` + "`" + `}}`,
+        nil, `
+`,
+    },
+    "regexrepl": {`
+{{regexrepl "1 and 2" ` + "`" + `(\d)` + "` `" + `0$1` + "`" + `}}`,
+        nil, `
+01 and 02`,
     },
     "idiv1": {`
 {{idiv 7 3}}`,
