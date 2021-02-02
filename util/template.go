@@ -18,6 +18,15 @@ func SafeToLower(s interface{}) string {
     return strings.ToLower( SafeValue(s) )
 }
 
+func SafeMatch (s interface{}, re string) bool {
+    if s == nil {
+        return false
+    }
+
+    re_c := regexp.MustCompile(re)
+    return re_c.MatchString(s.(string))
+}
+
 func SafeReplaceAllString (s interface{}, re string, replacement string) string {
     if s == nil {
         return ""

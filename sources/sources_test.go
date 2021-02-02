@@ -274,11 +274,11 @@ var0`,
         nil, `
 8`,
     },
-    "fexists": {`
-{{if fexists "/etc/passwd" -}}
+    "isfile": {`
+{{if isfile "/etc/passwd" -}}
 This must exist
 {{- end -}}
-{{if fexists "/blah/blah" -}}
+{{if isfile "/blah/blah" -}}
 This cannot exist
 {{- end -}}`,
         nil, `

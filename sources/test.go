@@ -122,15 +122,21 @@ func AssertRunForEnvironment(t *testing.T, dir string, environment string, resul
             return err
         }
 
-        if !info.IsDir() {
-            rel_path := strings.TrimPrefix(path, expected_dir)
-            expected_bytes := util.SlurpFile(path)
-
-            result_path := filepath.Join(result_dir, rel_path)
-            target_bytes := util.SlurpFile(result_path)
-
-            assert.Equal(t, string(expected_bytes), string(target_bytes), rel_path + " content")
+        if info.IsDir() {
+            return nil
         }
+
+        if fname := filepath.Base(path); strings.HasPrefix(fname, ".") {
+            return nil
+        }
+
+        rel_path := strings.TrimPrefix(path, expected_dir)
+        expected_bytes := util.SlurpFile(path)
+
+        result_path := filepath.Join(result_dir, rel_path)
+        target_bytes := util.SlurpFile(result_path)
+
+        assert.Equal(t, string(expected_bytes), string(target_bytes), rel_path + " content")
 
         return nil
     })

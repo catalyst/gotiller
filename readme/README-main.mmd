@@ -247,7 +247,7 @@ will give `something0 something1 something2`
 
 Gives CRC32 hashed value (8 hex digits) of a string.
 
-#### `fexists path`
+#### `isfile path`
 
 Returns boolean whether the file specified with path exists. In case of a dir throws an exception.
 

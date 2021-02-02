@@ -8,6 +8,7 @@ import (
     "path/filepath"
     "sort"
     "fmt"
+    "encoding/base64"
     "text/template"
 
     "github.com/catalyst/gotiller/util"
@@ -230,28 +231,48 @@ func MakeDeployables(m util.AnyMap) Deployables {
     return d
 }
 
+var FuncMap = template.FuncMap{
+    "iadd"       : func(x, y int) int { return x + y  },
+    "imul"       : func(x, y int) int { return x * y  },
+    "idiv"       : func(x, y int) int { return x / y  },
+    "imod"       : func(x, m int) int { return x % m  },
+    "tostr"      : util.ToString,
+    "strtoi"     : util.AtoI,
+    "safe"       : util.SafeValue,
+    "coalesce"   : util.Coalesce,
+    "tolower"    : util.SafeToLower,
+    "match"      : util.SafeMatch,
+    "regexrepl"  : util.SafeReplaceAllString,
+    "quotedlist" : util.QuotedList,
+    "sequence"   : util.Sequence,
+    "timeoffset" : util.TimeOffset,
+    "isfile"     : util.IsFile,
+    "decode64"   : func(in string) string {
+        data, err := base64.StdEncoding.DecodeString(in)
+        if err != nil {
+            panic(err)
+        }
+        return string(data)
+    },
+}
+func RegisterTemplateFunc(name string, fn interface{}) {
+    FuncMap[name] = fn
+}
+func CloneFuncMap() template.FuncMap {
+    func_map := make(template.FuncMap)
+    for n, f := range FuncMap {
+        func_map[n] = f
+    }
+    return func_map
+}
+
 type Template struct {
     Path    string
     Content string
 }
 func (t *Template) Write(out io.Writer, v Vars) {
-    func_map := template.FuncMap{
-        "iadd"       : func(x, y int) int { return x + y  },
-        "imul"       : func(x, y int) int { return x * y  },
-        "idiv"       : func(x, y int) int { return x / y  },
-        "imod"       : func(x, m int) int { return x % m  },
-        "tostr"      : util.ToString,
-        "strtoi"     : util.AtoI,
-        "safe"       : util.SafeValue,
-        "coalesce"   : util.Coalesce,
-        "tolower"    : util.SafeToLower,
-        "regexrepl"  : util.SafeReplaceAllString,
-        "quotedlist" : util.QuotedList,
-        "sequence"   : util.Sequence,
-        "timeoffset" : util.TimeOffset,
-        "fexists"    : util.FileExists,
-        "val"        : func(var_name string) string { return v[var_name] },
-    }
+    func_map := CloneFuncMap()
+    func_map["val"] = func(var_name string) string { return v[var_name] }
 
     t_exec := template.Must( template.New("").Funcs(func_map).Parse(t.Content) )
     if err := t_exec.Execute(out, v); err != nil {
