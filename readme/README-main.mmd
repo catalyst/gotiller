@@ -33,15 +33,15 @@ If You have used Tiller
     implied with inclusion of the corresponding sections; "File" plugin
     is assumed
 -   `config:` is replaced with `vars:`
--   `defaults: globals:` is replaced with `default_vars:`
+-   `defaults: global:` is replaced with `default_vars:`
 
-Rationale: `defaults: globals:` is equivalent to
+Rationale: `defaults: global:` is equivalent to
 `defaults: <any_template>: config:`, thus breaking the structure of
 `defaults: <template>:`. Besides, it means that you cannot have template
-named `globals`. So it had to be renamed. I find `global_config:` to be
-confusing, so I went with `global_vars:`.
+named `global`. So it had to be renamed. I find `global_config:` to be
+confusing, so I went with `default_vars:`.
 
-Once `global_vars:` was there, `config:` had to become `vars:`.
+Once `default_vars:` was there, `config:` had to become `vars:`.
 
 #### Environment plugin
 
@@ -148,8 +148,6 @@ Config files understand following keys:
     specified
 -   env\_vars\_prefix - prefix of the env vars (see convention at the
     top) to apply; if missing or empty no vars are taken from env
-
-<!-- -->
 
     default_vars:
       var1: val1
