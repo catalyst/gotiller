@@ -13,77 +13,86 @@ import (
     "github.com/catalyst/gotiller/util"
 )
 
-var t1 = Deployables {
-    "deployable1": &Spec {
-        Target: "target1",
-        User  : "user1",
-        Vars  : Vars {
-            "var1": "val1",
-            "varX": "val1X",
+var t1 = &Deployables {
+    nil,
+    Specs{
+        "deployable1": &Spec {
+            Target: "target1",
+            User  : "user1",
+            Vars  : Vars {
+                "var1": "val1",
+                "varX": "val1X",
+            },
         },
-    },
-    "deployableX": &Spec {
-        Target: "targetX1",
-        User  : "user1",
-        Group : "group1",
-        Vars  : Vars {
-            "var1": "val1",
-            "varX": "val1X",
-        },
-    },
-}
-var t2 = Deployables {
-    "deployable2": &Spec {
-        Target: "target2",
-        User  : "user2",
-        Vars  : Vars {
-            "var1": "val2",
-            "varX": "val2X",
-        },
-    },
-    "deployableX": &Spec {
-        Target: "targetX2",
-        User  : "user2",
-        Perms : os.FileMode(0644),
-        Vars  : Vars {
-            "var2": "val2",
-            "varX": "val2X",
+        "deployableX": &Spec {
+            Target: "targetX1",
+            User  : "user1",
+            Group : "group1",
+            Vars  : Vars {
+                "var1": "val1",
+                "varX": "val1X",
+            },
         },
     },
 }
-var t1_t2 = Deployables {
-    "deployable1": &Spec {
-        Target: "target1",
-        User  : "user1",
-        Vars  : Vars {
-            "var1": "val1",
-            "varX": "val1X",
+var t2 = &Deployables {
+    nil,
+    Specs{
+        "deployable2": &Spec {
+            Target: "target2",
+            User  : "user2",
+            Vars  : Vars {
+                "var1": "val2",
+                "varX": "val2X",
+            },
+        },
+        "deployableX": &Spec {
+            Target: "targetX2",
+            User  : "user2",
+            Perms : os.FileMode(0644),
+            Vars  : Vars {
+                "var2": "val2",
+                "varX": "val2X",
+            },
         },
     },
-    "deployable2": &Spec {
-        Target: "target2",
-        User  : "user2",
-        Vars  : Vars {
-            "var1": "val2",
-            "varX": "val2X",
+}
+var t1_t2 = &Deployables {
+    nil,
+    Specs{
+        "deployable1": &Spec {
+            Target: "target1",
+            User  : "user1",
+            Vars  : Vars {
+                "var1": "val1",
+                "varX": "val1X",
+            },
         },
-    },
-    "deployableX": &Spec {
-        Target: "targetX2",
-        User  : "user2",
-        Group : "group1",
-        Perms : os.FileMode(0644),
-        Vars  : Vars {
-            "var1": "val1",
-            "var2": "val2",
-            "varX": "val2X",
+        "deployable2": &Spec {
+            Target: "target2",
+            User  : "user2",
+            Vars  : Vars {
+                "var1": "val2",
+                "varX": "val2X",
+            },
+        },
+        "deployableX": &Spec {
+            Target: "targetX2",
+            User  : "user2",
+            Group : "group1",
+            Perms : os.FileMode(0644),
+            Vars  : Vars {
+                "var1": "val1",
+                "var2": "val2",
+                "varX": "val2X",
+            },
         },
     },
 }
 func Test_merge_deployables(t *testing.T) {
     t.Cleanup(util.SupressLogForTest(t, logger))
 
-    tr := make(Deployables)
+    tr := MakeDeployables(nil)
     tr.Merge(t1)
     tr.Merge(t2)
 
@@ -111,13 +120,13 @@ var vars = Vars {
     "varB": "valVB",
     "varD": "valVD",
 }
-var default_vars = Vars {
+var global_vars = Vars {
     "varDV": "valDV",
     "varA": "valDVA",
     "varC": "valDVC",
     "varD": "valDVD",
 }
-var merged_vars = Vars {  // default_vars + spec.Vars + vars
+var merged_vars = Vars {  // global_vars + spec.Vars + vars
     "varT": "valT",
     "varV": "valV",
     "varDV": "valDV",
@@ -146,7 +155,7 @@ valDV
 `
 func Test_merge_vars(t *testing.T) {
     vr := make(Vars)
-    vr.Merge(default_vars, spec.Vars, vars)
+    vr.Merge(global_vars, spec.Vars, vars)
 
     assert.Equal(t, merged_vars, vr, "merge_vars()")
 }

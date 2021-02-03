@@ -18,7 +18,7 @@ const (
 )
 
 type FileSystemSource struct {
-    EnvironmentsSource
+    *EnvironmentsSource
     Templates
 }
 func (f *FileSystemSource) MergeConfig(origin string, d interface{}) {
@@ -71,7 +71,7 @@ func (f *FileSystemSource) AllTemplates() Templates {
 
 func MakeFileSystemSource() SourceInterface {
     es := MakeEnvironmentsSource()
-    return &FileSystemSource{*es.(*EnvironmentsSource), make(map[string]*Template)}
+    return &FileSystemSource{es.(*EnvironmentsSource), make(map[string]*Template)}
 }
 
 func init() {

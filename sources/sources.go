@@ -15,6 +15,8 @@ import (
     "github.com/catalyst/gotiller/log"
 )
 
+const GlobalVarsKey = "_vars"
+
 var logger = log.DefaultLogger
 
 type Vars      map[string]string
@@ -177,58 +179,78 @@ func MakeSpec(m util.AnyMap) *Spec {
     return &d
 }
 
-type Deployables map[string]*Spec
-func (ds *Deployables) Merge(ds1 Deployables) {
+type Specs map[string]*Spec
+
+type Deployables struct {
+    Vars
+    Specs
+}
+func (ds *Deployables) Merge(ds1 *Deployables) {
     if ds1 == nil {
         return
     }
 
-    r_deployables := *ds
+    if ds1.Vars != nil {
+        if ds.Vars == nil {
+            ds.Vars = make(Vars)
+        }
+        ds.Vars.Merge(ds1.Vars)
+    }
 
-    for d_name, spec := range ds1 {
-        r_spec, exists := r_deployables[d_name]
+    for name, spec := range ds1.Specs {
+        r_spec, exists := ds.Specs[name]
         if exists {
-            logger.Debugf("Merging deployable %s\n", d_name)
+            logger.Debugf("Merging spec %s\n", name)
         } else {
-            logger.Debugf("Setting deployable %s\n", d_name)
+            logger.Debugf("Setting spec %s\n", name)
             r_spec = &Spec{}
-            r_deployables[d_name] = r_spec
-
+            ds.Specs[name] = r_spec
         }
         r_spec.Merge(spec)
     }
-
-    *ds = r_deployables
 }
-
-func (ds *Deployables) MergeVars(vars Vars) {
-    for tpl, d := range *ds {
-        logger.Debugf("Merging missing vars into deployable %s\n", tpl)
-        if d.Vars == nil {
-            d.Vars = make(Vars)
+func (ds *Deployables) Overlay(ds1 *Deployables) {
+    if ds1.Vars != nil {
+        for _, spec := range ds.Specs {
+            if spec.Vars == nil {
+                spec.Vars = make(Vars)
+            }
+            spec.Vars.Merge(ds1.Vars)
         }
-        d.Vars.Merge(vars)
     }
-}
 
-func (ds *Deployables) SetMissingVars(vars Vars) {
-    for tpl, d := range *ds {
-        logger.Debugf("Merging missing vars into deployable %s\n", tpl)
-        if d.Vars == nil {
-            d.Vars = make(Vars)
+    ds.Merge(ds1)
+}
+func (ds *Deployables) PreparedSpecs() Specs {
+    specs := make(Specs)
+    for name, spec := range ds.Specs {
+        s := *spec
+
+        logger.Debugf("Merging missing vars into spec %s\n", name)
+        if s.Vars == nil {
+            s.Vars = make(Vars)
         }
-        d.Vars.SetMissing(vars)
+        s.Vars.SetMissing(ds.Vars)
+
+        specs[name] = &s
     }
+    return specs
 }
 
-func MakeDeployables(m util.AnyMap) Deployables {
-    d := make(Deployables)
+func MakeDeployables(m util.AnyMap) *Deployables {
+    var vars Vars
+    specs :=  make(Specs)
     for n, s := range m {
+        if n == GlobalVarsKey {
+            logger.Debugf("Making vars for %s\n", n)
+            vars = MakeVars(s.(util.AnyMap))
+            continue
+        }
+
         logger.Debugf("Making deployable spec for %s\n", n)
-        spec := MakeSpec(s.(util.AnyMap))
-        d[n] = spec
+        specs[n] = MakeSpec(s.(util.AnyMap))
     }
-    return d
+    return &Deployables{vars, specs}
 }
 
 var FuncMap = template.FuncMap{
@@ -284,21 +306,19 @@ type Templates          map[string]*Template
 
 type SourceInterface interface {
     MergeConfig(origin string, values interface{})
-    DeployablesForEnvironment(environment string) Deployables
-    DefaultVars()                                 Vars
-    Template(string)                              *Template
-    AllEnvironments()                             []string
-    AllTemplates()                                Templates
+    DeployablesForEnvironment(environment string)  *Deployables
+    Template(string)                               *Template
+    AllEnvironments()                              []string
+    AllTemplates()                                 Templates
 }
 type SourceFactory func () SourceInterface
 type BaseSource struct {
     MergeHistory
 }
-func (s *BaseSource) DeployablesForEnvironment(environment string) Deployables { return nil }
-func (s *BaseSource) DefaultVars              ()                   Vars        { return nil }
-func (s *BaseSource) Template                 (n string)           *Template   { return nil }
-func (s *BaseSource) AllEnvironments          ()                   []string    { return nil }
-func (s *BaseSource) AllTemplates             ()                   Templates   { return nil }
+func (s *BaseSource) DeployablesForEnvironment(environment string) *Deployables { return nil }
+func (s *BaseSource) Template                 (n string)           *Template    { return nil }
+func (s *BaseSource) AllEnvironments          ()                   []string     { return nil }
+func (s *BaseSource) AllTemplates             ()                   Templates    { return nil }
 func MakeBaseSource() BaseSource {
     return BaseSource{MergeHistory{}}
 }
@@ -394,25 +414,21 @@ func (p *Processor) MergeConfig(origin string, config util.AnyMap) {
     }
 }
 
-func (p *Processor) Deployables(environment string) Deployables {
-    deployables_m := make(Deployables)
-    vars_m := make(Vars)
+func (p *Processor) Specs(environment string) Specs {
+    deployables := &Deployables{nil, make(Specs)}
 
     logger.Debugf("Getting deployables and default vars for %s\n", environment)
     for _, si := range p.Sources {
         logger.Debugf("From %s\n", si.Name)
 
-        vars := si.DefaultVars()
-        vars_m.Merge(vars)
-        deployables_m.MergeVars(vars)
-
-        ds := si.DeployablesForEnvironment(environment)
-        deployables_m.Merge(ds)
+        d := si.DeployablesForEnvironment(environment)
+        if d != nil {
+            deployables.Overlay(d)
+        }
     }
     logger.Debugln("Filling missing vars from defaults")
-    deployables_m.SetMissingVars(vars_m)
 
-    return deployables_m
+    return deployables.PreparedSpecs()
 }
 
 func (p *Processor) ListTemplates() []map[string]string {
@@ -461,8 +477,8 @@ func (p *Processor) ListEnvironments() []string {
 }
 
 func (p *Processor) RunForEnvironment(environment string, target_base_dir string) {
-    deployables := p.Deployables(environment)
-    if len(deployables) == 0 {
+    specs := p.Specs(environment)
+    if len(specs) == 0 {
         if environment == "" {
             logger.Panic("No environment specified - nothing to do")
         }
@@ -478,7 +494,7 @@ func (p *Processor) RunForEnvironment(environment string, target_base_dir string
         }
     }()
 
-    for n, s := range deployables {
+    for n, s := range specs {
         if _, exists := s.Vars["environment"]; !exists {
             s.Vars["environment"] = environment
         }

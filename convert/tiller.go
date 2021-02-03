@@ -34,8 +34,8 @@ func (c *Converter) init() {
     processor := sources.LoadConfigsFromDir(c.SourceDir)
     environments := processor.ListEnvironments()
     for _, e := range environments {
-        for name, d := range processor.Deployables(e) {
-            if t := d.Target; t != "" {
+        for name, s := range processor.Specs(e) {
+            if t := s.Target; t != "" {
                 c.RenameTemplate(name, t)
             }
         }

@@ -1,4 +1,5 @@
-default_vars:
-    x: v_default_x
-    y: v_default_y
-    z: v_default_z
+defaults:
+    _vars:
+        x: v_default_x
+        y: v_default_y
+        z: v_default_z

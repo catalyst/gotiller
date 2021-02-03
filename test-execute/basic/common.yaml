@@ -1,10 +1,10 @@
-default_vars:
-    v0: v_default_0
-    x: v_default_x
-    y: v_default_y
-    z: v_default_z
-
 defaults:
+    _vars:
+        v0: v_default_0
+        x: v_default_x
+        y: v_default_y
+        z: v_default_z
+
     t1.conf:
         target: /etc/something/t1.conf
         vars:
@@ -30,6 +30,9 @@ default_environment: env1
 
 environments:
     env1:
+        _vars:
+            v3: v_common_env1_default_3
+
         t1.conf:
             vars:
                 v1: v_common_env1_t1_1

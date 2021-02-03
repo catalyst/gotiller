@@ -1,6 +1,6 @@
 functions.example:
     -
-        source: "default_vars vars"
+        source: "defaults vars"
         vars:
             v0: v_default_0
             x: v_default_x
@@ -13,13 +13,17 @@ functions.example:
             v_true_1: "A string"
             v_true_2: "1"
     -
+        source: "environments vars"
+        vars:
+            v3: v_common_env1_default_3
+    -
         source: "env_vars_prefix vars"
         vars:
             x: v_from_env_x
 
 t1.conf:
     -
-        source: "default_vars vars"
+        source: "defaults vars"
         vars:
             v0: v_default_0
             x: v_default_x
@@ -34,6 +38,10 @@ t1.conf:
             x: v_template_default_t1_x
             y: v_template_default_t1_y
             z: v_template_default_t1_z
+    -
+        source: "environments vars"
+        vars:
+            v3: v_common_env1_default_3
     -
         source: "environments"
         vars:
@@ -53,7 +61,7 @@ t1.conf:
 
 t2.ini:
     -
-        source: "default_vars vars"
+        source: "defaults vars"
         vars:
             v0: v_default_0
             x: v_default_x
@@ -69,6 +77,10 @@ t2.ini:
             y: v_template_default_t2_y
             z: v_template_default_t2_z
     -
+        source: "environments vars"
+        vars:
+            v3: v_common_env1_default_3
+    -
         source: "filesystem"
         vars:
             v1: v_env1_t2_1
@@ -80,12 +92,16 @@ t2.ini:
 
 t3.conf:
     -
-        source: "default_vars vars"
+        source: "defaults vars"
         vars:
             v0: v_default_0
             x: v_default_x
             y: v_default_y
             z: v_default_z
+    -
+        source: "environments vars"
+        vars:
+            v3: v_common_env1_default_3
     -
         source: "filesystem"
         vars:

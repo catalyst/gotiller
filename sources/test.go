@@ -76,14 +76,14 @@ func DumpVarsChain(p *Processor, environment string, tpl string) VarsChain {
 
     for _, si := range p.Sources {
         ds := si.DeployablesForEnvironment(environment)
-        v := si.DefaultVars()
+        v := ds.Vars
 
         if v != nil {
             vc.append(si.Name + " vars", v)
         }
 
         if ds != nil {
-            if t, exists := ds[tpl]; exists {
+            if t, exists := ds.Specs[tpl]; exists {
                 vc.append(si.Name, t.Vars)
             }
         }

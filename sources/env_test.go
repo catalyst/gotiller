@@ -22,5 +22,5 @@ func Test_EnvVarsSource(t *testing.T) {
 
     evs.MergeConfig("test", env_vars_prefix)
 
-    assert.Equal(t, Vars{var_a: var_a}, evs.DefaultVars(), "Test_EnvVarsSource.()")
+    assert.Equal(t, Vars{var_a: var_a}, evs.(*EnvVarsSource).DeployablesSource.Vars, "Test_EnvVarsSource.()")
 }
