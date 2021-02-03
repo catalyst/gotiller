@@ -1,9 +1,12 @@
+// Infrastructure for config files Deployables. No Templates.
+
 package sources
 
 import (
     "github.com/catalyst/gotiller/util"
 )
 
+// Generic DeployablesSource type and SourceInterface implementation
 type DeployablesSource struct {
     *Deployables
     BaseSource
@@ -27,6 +30,7 @@ func MakeDeployablesSource() SourceInterface {
     return &DeployablesSource{nil, MakeBaseSource()}
 }
 
+// A Deployables per environment version of DeployablesSource type
 type EnvironmentDeployables map[string]*Deployables
 type EnvironmentsSource struct {
     EnvironmentDeployables

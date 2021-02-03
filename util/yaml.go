@@ -1,3 +1,5 @@
+// Utility functions. Yaml related.
+
 package util
 
 import (

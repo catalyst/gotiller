@@ -1,3 +1,5 @@
+// Main entry
+
 package gotiller
 
 import (
@@ -7,7 +9,8 @@ import (
 
 var logger = log.DefaultLogger
 
-func Execute(dir string, environment string, target_base_dir string, verbose bool) *sources.Processor {
+// Process config files and templates
+func Process(dir string, environment string, target_base_dir string, verbose bool) *sources.Processor {
     logger.Printf("Executing from %s\n", dir)
     if target_base_dir != "" {
         logger.Printf("Writing to %s\n", target_base_dir)

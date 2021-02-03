@@ -1,3 +1,5 @@
+// Infrastructure for filesystem Deployables. environments/ configs and Templates
+
 package sources
 
 import (
@@ -17,6 +19,7 @@ const (
     TemplatesSubdir    = "templates"
 )
 
+// A EnvironmentsSource type upgrade with Templates
 type FileSystemSource struct {
     *EnvironmentsSource
     Templates
@@ -78,6 +81,8 @@ func init() {
     RegisterSource("filesystem", MakeFileSystemSource, 50, false)
 }
 
+// Config dir loader. Creates a new Processor and loads it with config maps.
+// Calls LoadConfigFile() for each file to get those maps.
 func LoadConfigsFromDir(dir string) *Processor {
     processor := NewProcessor()
 
@@ -102,6 +107,7 @@ func LoadConfigsFromDir(dir string) *Processor {
     return processor
 }
 
+// Config file loader. Loads Yaml into a map.
 func LoadConfigFile(path string) util.AnyMap {
     config := make(util.AnyMap)
 

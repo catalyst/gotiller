@@ -1,3 +1,5 @@
+// Infrastructure for env vars
+
 package sources
 
 import (
@@ -7,6 +9,7 @@ import (
     "github.com/catalyst/gotiller/util"
 )
 
+// An env vars version of DeployablesSource type. NOSpecs, just Vars.
 type EnvVarsSource struct {
     *DeployablesSource
 }

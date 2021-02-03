@@ -1,3 +1,6 @@
+// Standard log package extension that adds Debug* functions/methods.
+// It should really be part of the stock package
+
 package log
 
 import std_log "log"

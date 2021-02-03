@@ -1,3 +1,5 @@
+// Test helpers, for tests that execute test-run tests
+
 package sources
 
 import (
@@ -18,10 +20,63 @@ var (
     TestsDefBaseDir = filepath.Join(base_dir, "test-run")
 )
 
+// Env vars that will be set for each run
 var TestEnvVars = map[string]string {
     "x": "v_from_env_x",
 }
 
+// Helper type to set/clear env vars
+type EnvForPrefix string
+func (ep *EnvForPrefix) Clear() {
+    prefix := string(*ep)
+    if prefix == "" {
+        return;
+    }
+
+    for _, e := range os.Environ() {
+        pair := strings.SplitN(e, "=", 2)
+        if name := pair[0]; strings.HasPrefix(name, prefix) {
+            if err := os.Unsetenv(name); err != nil {
+                panic (err.Error())
+            }
+        }
+    }
+}
+func (ep *EnvForPrefix) Set(v, val string) {
+    prefix := string(*ep)
+    if prefix == "" {
+        return;
+    }
+
+    os.Setenv(prefix + v, val)
+}
+
+// Find suitable env_vars_prefix in config(s)
+func FindEnvVarsPrefix (dir string) EnvForPrefix {
+    var env_vars_prefix string
+
+    config_path := filepath.Join(dir, ConfigFname)
+    if _, err := os.Stat(config_path); err == nil {
+        config := LoadConfigFile(config_path)
+        if prefix, exists := config["env_vars_prefix"]; exists {
+            env_vars_prefix = prefix.(string)
+        }
+    }
+
+    config_pattern := filepath.Join(dir, ConfigD, "*" + ConfigSuffix)
+    if matches, _ := filepath.Glob(config_pattern); matches != nil {
+        for _, m := range matches {
+            config := LoadConfigFile(m)
+            if prefix, exists := config["env_vars_prefix"]; exists {
+                env_vars_prefix = prefix.(string)
+            }
+        }
+    }
+
+    return EnvForPrefix(env_vars_prefix)
+}
+
+// test-run iterator, that sets up the stage - env vars
 func RunTests(t *testing.T, test_fn func(t *testing.T, dir string)) {
     t.Cleanup(util.SupressLogForTest(t, logger))
 
@@ -48,55 +103,7 @@ func RunTests(t *testing.T, test_fn func(t *testing.T, dir string)) {
     }
 }
 
-type EnvForPrefix string
-func (ep *EnvForPrefix) Clear() {
-    prefix := string(*ep)
-    if prefix == "" {
-        return;
-    }
-
-    for _, e := range os.Environ() {
-        pair := strings.SplitN(e, "=", 2)
-        if name := pair[0]; strings.HasPrefix(name, prefix) {
-            if err := os.Unsetenv(name); err != nil {
-                panic (err.Error())
-            }
-        }
-    }
-}
-func (ep *EnvForPrefix) Set(v, val string) {
-    prefix := string(*ep)
-    if prefix == "" {
-        return;
-    }
-
-    os.Setenv(prefix + v, val)
-}
-
-func FindEnvVarsPrefix (dir string) EnvForPrefix {
-    var env_vars_prefix string
-
-    config_path := filepath.Join(dir, ConfigFname)
-    if _, err := os.Stat(config_path); err == nil {
-        config := LoadConfigFile(config_path)
-        if prefix, exists := config["env_vars_prefix"]; exists {
-            env_vars_prefix = prefix.(string)
-        }
-    }
-
-    config_pattern := filepath.Join(dir, ConfigD, "*" + ConfigSuffix)
-    if matches, _ := filepath.Glob(config_pattern); matches != nil {
-        for _, m := range matches {
-            config := LoadConfigFile(m)
-            if prefix, exists := config["env_vars_prefix"]; exists {
-                env_vars_prefix = prefix.(string)
-            }
-        }
-    }
-
-    return EnvForPrefix(env_vars_prefix)
-}
-
+// Helper type for setting up executed vars chains expectations
 type VarsLink struct {
     Source string
     Vars
@@ -108,6 +115,7 @@ func (vcp *VarsChain) append(source string, vars Vars) {
     *vcp = vc
 }
 
+// Marshal Processor sources vars for environment/template into VarsChain
 func DumpVarsChain(p *Processor, environment string, tpl string) VarsChain {
     var vc VarsChain
 
@@ -131,7 +139,11 @@ func DumpVarsChain(p *Processor, environment string, tpl string) VarsChain {
 
 type ExpectedVarsChains map[string]VarsChain
 
-func TestVarsChain(t *testing.T, p *Processor, dir string, environment string) {
+// Assert that Processor vars chains for environment templates match expectations.
+// Expectations are stored in vars_chain/<environment>.yaml files.
+// What we are testing here is that config.d/ values superseed common.yaml,
+// and environments/* superseed common,yaml environments
+func AssertVarsChain(t *testing.T, p *Processor, dir string, environment string) {
     expected_path := filepath.Join(dir, "vars_chain", environment + ".yaml")
     expected_vcs := make(ExpectedVarsChains)
     util.ReadYaml(expected_path, expected_vcs)
@@ -141,6 +153,7 @@ func TestVarsChain(t *testing.T, p *Processor, dir string, environment string) {
     }
 }
 
+// Assert that processed templates match expectations storet in the results/ dir
 func AssertRunForEnvironment(t *testing.T, dir string, environment string, result_dir string) {
     defer func() {
         if r := recover(); r != nil {

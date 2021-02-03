@@ -1,3 +1,5 @@
+// Utility functions. io and filesystem related
+
 package util
 
 import (

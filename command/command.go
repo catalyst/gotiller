@@ -1,3 +1,5 @@
+// Command line helpers
+
 package command
 
 import (
@@ -9,6 +11,7 @@ import (
     "github.com/spf13/pflag"
 )
 
+// Types for defining command line flags and arguments
 type CommandLineFlag struct {
     Long       string
     Short      string
@@ -24,6 +27,7 @@ type CommandLineArgs struct {
     Values     []string
 }
 
+// Marshal command line into CommandLine* types
 func ParseArgs(flags []*CommandLineFlag, args *CommandLineArgs) func() {
     out := os.Stderr
     pflag.CommandLine.SetOutput(out)
@@ -78,6 +82,7 @@ func ParseArgs(flags []*CommandLineFlag, args *CommandLineArgs) func() {
     return pflag.Usage
 }
 
+// A thin wrapper intended for main() funcs. Calls ParseArgs() and sets panic() handler
 func Run(flags []*CommandLineFlag, args *CommandLineArgs, main_fn func()) {
     usage_fn := ParseArgs(flags, args)
 

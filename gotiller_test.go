@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
     os.Exit(m.Run())
 }
 
-func Test_Execute(t *testing.T) {
+func Test_Process(t *testing.T) {
     t.Cleanup(util.SupressLogForTest(t, logger))
 
     if test_dir != "" {
@@ -50,14 +50,14 @@ func do_execute_test(t *testing.T, dir string) {
         }
     }()
 
-    Execute(dir, "", target_dir, true)
+    Process(dir, "", target_dir, true)
     sources.AssertRunForEnvironment(t, dir, "default", target_dir)
 }
 
-func Test_ExecuteNothing(t *testing.T) {
+func Test_ProcessNothing(t *testing.T) {
     conf_dir := t.TempDir()
     assert.PanicsWithValue(t, panic_nothing_to_do, func () {
         target_dir := t.TempDir()
-        Execute(conf_dir, bogus_environment, target_dir, true)
-    }, "Execute() in bogus directory")
+        Process(conf_dir, bogus_environment, target_dir, true)
+    }, "Process() in bogus directory")
 }

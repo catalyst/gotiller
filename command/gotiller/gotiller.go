@@ -67,7 +67,7 @@ func main() {
                 }
             }
 
-            gotiller.Execute(dir, env, target_base_dir, verbose)
+            gotiller.Process(dir, env, target_base_dir, verbose)
         },
     )
 }

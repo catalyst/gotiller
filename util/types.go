@@ -1,3 +1,5 @@
+// Utility functions. Basic conversions.
+
 package util
 
 import (

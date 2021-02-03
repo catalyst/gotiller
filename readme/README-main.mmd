@@ -284,6 +284,8 @@ will give
     something1=<value of var1>
     something2=<value of var2>
 
+Bonus: if `.var` makes you unhappy, you can always use `val "var"` instead.
+
 #### `timeoffset string`
 
 Gives an int in the 0 - 60 range based on the CRC32 hashed value of a string.

@@ -32,7 +32,7 @@ func do_run_tests(t *testing.T, dir string) {
             processor.RunForEnvironment(environment, target_dir)
             AssertRunForEnvironment(t, dir, environment, target_dir)
 
-            TestVarsChain(t, processor, dir, environment)
+            AssertVarsChain(t, processor, dir, environment)
         })
     }
 }

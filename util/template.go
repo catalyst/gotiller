@@ -1,3 +1,5 @@
+// Utility functions. To be available in templates.
+
 package util
 
 import (
@@ -36,6 +38,7 @@ func SafeReplaceAllString (s interface{}, re string, replacement string) string 
     return re_c.ReplaceAllString(s.(string), replacement)
 }
 
+// For the list of arguments, return first that is not undefined (nil)
 func Coalesce(v ...interface{}) interface{} {
     for _, v1 := range v {
         if v1 != nil {
@@ -45,6 +48,8 @@ func Coalesce(v ...interface{}) interface{} {
     return nil
 }
 
+// Splits given string on separator, and joins the bits quoted with "".
+// A half-hearted attempt, no escaping.
 func QuotedList(l interface{}, separator string) string {
     if l == nil {
         return ""
@@ -61,7 +66,8 @@ func Sequence(start, length int) []int {
     return seq
 }
 
-// seed is not seed at all
+// Give a number between 0 and 60 that somehow represents the given string.
+// seed is not seed at all.
 func TimeOffset(seed string) int {
     if seed == "" {
         return rand.Intn(60)

@@ -1,3 +1,5 @@
+// Convert tiller config files/templates to the new formats
+
 package convert
 
 import (
@@ -14,8 +16,10 @@ import (
 
 const ConfigEtcPath = "/etc/tiller"
 
+// Corrected template names map
 type RenamedTemplates = map[string]string
 
+// Converter state
 type Converter struct {
     SourceDir        string
     TargetDir        string
@@ -42,12 +46,13 @@ func (c *Converter) init() {
     }
 }
 
+// Helper for stripping .erb, and possibly replacing it with something
+// more appropriate
 func (c *Converter) RenameTemplate(t string, target string) {
     if _, exists := c.RenamedTemplates[t]; exists {
         return
     }
 
-    //give template a better name
     new_t := strings.TrimSuffix(t, ".erb")
     if !strings.ContainsRune(new_t, '.') {
         if target == "" {
@@ -64,6 +69,7 @@ func (c *Converter) RenameTemplate(t string, target string) {
     }
 }
 
+// Returns new template name
 func (c *Converter) RenamedTemplate(t string) string {
     if new_t, exists := c.RenamedTemplates[t]; exists {
         return new_t
@@ -71,6 +77,7 @@ func (c *Converter) RenamedTemplate(t string) string {
     return t
 }
 
+// Converter instantiator
 func NewConverter(in_dir string, out_dir string) *Converter {
     c := &Converter{
         SourceDir     : in_dir,
@@ -81,6 +88,7 @@ func NewConverter(in_dir string, out_dir string) *Converter {
     return c
 }
 
+// Converter main entry method. Calls specific conversion methods.
 func (c *Converter) Convert() {
     c.ConvertMainConfig()
     c.ConvertConfigD()
@@ -88,6 +96,7 @@ func (c *Converter) Convert() {
     c.ConvertTemplates()
 }
 
+// Main entry function. Instantiates Converter and calls Convert() on it.
 func Convert(in_dir string, out_dir string) {
     if (out_dir == "") {
         panic("output gotiller config dir not given")
@@ -113,6 +122,7 @@ func Convert(in_dir string, out_dir string) {
     converter.Convert()
 }
 
+// Convert common.yaml
 func (c *Converter) ConvertMainConfig() {
     tiller_config_path := filepath.Join(c.SourceDir, sources.ConfigFname)
 
@@ -123,6 +133,7 @@ func (c *Converter) ConvertMainConfig() {
     }
 }
 
+// Convert config.d/ entries
 func (c *Converter) ConvertConfigD() {
     tiller_config_subdir := filepath.Join(c.SourceDir, sources.ConfigD)
 
@@ -194,6 +205,7 @@ func (c *Converter) convert_config(config util.AnyMap) {
     }
 }
 
+// Convert environments/ entries
 func (c *Converter) ConvertEnvironments() {
     tiller_environments_subdir := filepath.Join(c.SourceDir, sources.EnvironmentsSubdir)
 
@@ -250,6 +262,11 @@ func (c *Converter) convert_vars(vars util.AnyMap) util.AnyMap {
     return new_vars
 }
 
+// Convert templates
+// It makes a two/thirds hearted attempt, using regular expressions.
+// Anything even slightly complex is doomed to fail, however it will
+// succeed in almost all simpler and in some not so simple cases.
+// It is much better then doing everything by hand.
 func (c *Converter) ConvertTemplates() {
     tiller_templates_subdir := filepath.Join(c.SourceDir, sources.TemplatesSubdir)
     converted_templates_subdir := filepath.Join(c.TargetDir, sources.TemplatesSubdir)
@@ -272,6 +289,7 @@ func (c *Converter) ConvertTemplates() {
     }
 }
 
+// Scan for tags, and apply replacement function.
 func (c *Converter) convert_template(content string) string {
     return tag_re.ReplaceAllStringFunc(content, func (tag string) string {
         return c.convert_tag(tag)
@@ -405,6 +423,8 @@ var (
     }
 )
 
+// Expression converter. Caters for the most common cases, otherwise it is
+// really impossible to deal with arbitrary ruby code.
 func (c *Converter) convert_exp(exp string) (string, bool) {
     if m := bracket_re.FindStringSubmatch(exp); m != nil {
         not_op, fn, subexp := m[1], m[2], m[3]

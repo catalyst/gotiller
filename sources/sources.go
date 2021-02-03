@@ -1,3 +1,6 @@
+// The heart of the system.
+// Turns templates into real files according to configs/external sources
+
 package sources
 
 import (
@@ -19,6 +22,7 @@ const GlobalVarsKey = "_vars"
 
 var logger = log.DefaultLogger
 
+// Variables storage type.
 type Vars      map[string]string
 func (vs Vars) Merge(vars ...Vars) {
     for _, v := range vars {
@@ -61,6 +65,7 @@ func (vs Vars) Clone() Vars {
     return vs_v
 }
 
+// Turns a map into Vars.
 func MakeVars(vs util.AnyMap) Vars {
     vs_v := make(Vars)
     for n, v := range vs {
@@ -69,6 +74,7 @@ func MakeVars(vs util.AnyMap) Vars {
     return vs_v
 }
 
+// Template deployment Spec storage type.
 type Spec struct {
     Target   string
     User     string
@@ -100,6 +106,7 @@ func (s *Spec) Merge(s1 *Spec) {
         s.Vars.Merge(s1.Vars)
     }
 }
+// Turns template into the target, setting the permissions/ownership
 func (s *Spec) Deploy(t *Template, base_dir string) {
     target_path := s.Target
     if target_path == "" {
@@ -162,6 +169,7 @@ func (s *Spec) Deploy(t *Template, base_dir string) {
     }
 }
 
+// Turns a map into Spec.
 func MakeSpec(m util.AnyMap) *Spec {
     d := Spec{
         Target:   util.ToString(m["target"]),
@@ -181,10 +189,12 @@ func MakeSpec(m util.AnyMap) *Spec {
 
 type Specs map[string]*Spec
 
+// A set of Vars and Specs, used per environment or default
 type Deployables struct {
     Vars
     Specs
 }
+// Applies an overriding set.
 func (ds *Deployables) Merge(ds1 *Deployables) {
     if ds1 == nil {
         return
@@ -209,6 +219,8 @@ func (ds *Deployables) Merge(ds1 *Deployables) {
         r_spec.Merge(spec)
     }
 }
+// Applies an overriding set, overlaying the new default Vars over
+// the existing Specs first.
 func (ds *Deployables) Overlay(ds1 *Deployables) {
     if ds1.Vars != nil {
         for _, spec := range ds.Specs {
@@ -221,6 +233,7 @@ func (ds *Deployables) Overlay(ds1 *Deployables) {
 
     ds.Merge(ds1)
 }
+// Returns the Specs with applied default Vars where appropriate
 func (ds *Deployables) PreparedSpecs() Specs {
     specs := make(Specs)
     for name, spec := range ds.Specs {
@@ -237,6 +250,7 @@ func (ds *Deployables) PreparedSpecs() Specs {
     return specs
 }
 
+// Turns a map into Deployables.
 func MakeDeployables(m util.AnyMap) *Deployables {
     var vars Vars
     specs :=  make(Specs)
@@ -253,6 +267,7 @@ func MakeDeployables(m util.AnyMap) *Deployables {
     return &Deployables{vars, specs}
 }
 
+// Default functions set available to templates.
 var FuncMap = template.FuncMap{
     "iadd"       : func(x, y int) int { return x + y  },
     "imul"       : func(x, y int) int { return x * y  },
@@ -277,9 +292,11 @@ var FuncMap = template.FuncMap{
         return string(data)
     },
 }
+// Register additional function.
 func RegisterTemplateFunc(name string, fn interface{}) {
     FuncMap[name] = fn
 }
+// Returns a FuncMap clone, so parallel processing does not complain.
 func CloneFuncMap() template.FuncMap {
     func_map := make(template.FuncMap)
     for n, f := range FuncMap {
@@ -288,10 +305,14 @@ func CloneFuncMap() template.FuncMap {
     return func_map
 }
 
+// Tempate storage type
 type Template struct {
     Path    string
     Content string
 }
+// Feeds the processed template to the writer.
+// Adds "val" funtion to the FuncMap mix, so templates can access
+// variables directly by the name.
 func (t *Template) Write(out io.Writer, v Vars) {
     func_map := CloneFuncMap()
     func_map["val"] = func(var_name string) string { return v[var_name] }
@@ -304,6 +325,7 @@ func (t *Template) Write(out io.Writer, v Vars) {
 
 type Templates          map[string]*Template
 
+// Source interface
 type SourceInterface interface {
     MergeConfig(origin string, values interface{})
     DeployablesForEnvironment(environment string)  *Deployables
@@ -312,6 +334,7 @@ type SourceInterface interface {
     AllTemplates()                                 Templates
 }
 type SourceFactory func () SourceInterface
+// A basic SourceInterface implementation, with nil returns.
 type BaseSource struct {
     MergeHistory
 }
@@ -323,6 +346,7 @@ func MakeBaseSource() BaseSource {
     return BaseSource{MergeHistory{}}
 }
 
+// Forensic helpers, merge events audit
 type MergeEvent struct {
     Origin string
     Loaded interface{}
@@ -334,6 +358,9 @@ func (h *MergeHistory) AddHistory(origin string, values interface{}) {
     *h = r_h
 }
 
+// Infrastructure for registering sources in order.
+// RegisteredSource is astructure that can potentially
+// be loaded with config values/templates.
 type RegisteredSource struct {
     SourceFactory
     name          string
@@ -355,6 +382,7 @@ func (rs *RegisteredSources) Register(name string, factory SourceFactory, order 
 
     *rs = r_rs
 }
+// Makes a Processor and loads it with SourceInstances
 func (rs *RegisteredSources) NewProcessor() *Processor {
     var sorted []*RegisteredSource
 
@@ -374,10 +402,13 @@ func (rs *RegisteredSources) NewProcessor() *Processor {
 }
 
 
+// A named Source - type that implements SourceInterface
 type SourceInstance struct {
     Name   string
     SourceInterface
 }
+// The main workhorse - a collection of SourceInstances that applies
+// Vars hierarchically to Templates
 type Processor struct {
     DefaultEnvironment string
     Sources            []*SourceInstance
@@ -396,6 +427,9 @@ func (p *Processor) Get(name string) SourceInterface {
     return nil
 }
 
+// Load Sources from a map.
+// Map keys match RegisteredSource names.
+// Unknow source names are reported and skipped.
 func (p *Processor) MergeConfig(origin string, config util.AnyMap) {
     logger.Debugf("Merging %s\n", origin)
     for name, c := range config {
@@ -414,6 +448,8 @@ func (p *Processor) MergeConfig(origin string, config util.AnyMap) {
     }
 }
 
+// Return the corresponding set of Specs for an environment.
+// Hierarchically overlays Specs from the Sources according to their order.
 func (p *Processor) Specs(environment string) Specs {
     deployables := &Deployables{nil, make(Specs)}
 
@@ -431,6 +467,7 @@ func (p *Processor) Specs(environment string) Specs {
     return deployables.PreparedSpecs()
 }
 
+// List all templates known to the Sources
 func (p *Processor) ListTemplates() []map[string]string {
     tss := []map[string]string{}
 
@@ -447,6 +484,7 @@ func (p *Processor) ListTemplates() []map[string]string {
     return tss
 }
 
+// Find the template by its name
 func (p *Processor) Template(name string) *Template {
     logger.Debugf("Getting template for %s\n", name)
     last_si := len(p.Sources) - 1
@@ -459,6 +497,7 @@ func (p *Processor) Template(name string) *Template {
     return nil
 }
 
+// List all environments known to the Sources
 func (p *Processor) ListEnvironments() []string {
     environments := make(map[string]bool)
 
@@ -476,6 +515,9 @@ func (p *Processor) ListEnvironments() []string {
     return environments_s
 }
 
+// Process Templates for a given environment.
+// Deliver files to the target_base_dir if specified.
+// Templates are processed in parallel.
 func (p *Processor) RunForEnvironment(environment string, target_base_dir string) {
     specs := p.Specs(environment)
     if len(specs) == 0 {
@@ -528,10 +570,12 @@ func (p *Processor) RunForEnvironment(environment string, target_base_dir string
 
 var registered_sources = make(RegisteredSources)
 
+// Register Source point
 func RegisterSource(name string, factory SourceFactory, order int, force bool) {
     registered_sources.Register(name, factory, order, force)
 }
 
+// Gives a Processor, based on the RegisteredSources
 func NewProcessor() *Processor {
     return registered_sources.NewProcessor()
 }
