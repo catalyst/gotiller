@@ -5,11 +5,48 @@ import (
     "path/filepath"
     "strings"
     "fmt"
+    "runtime"
     "testing"
 
     "github.com/stretchr/testify/assert"
     "github.com/catalyst/gotiller/util"
 )
+
+var (
+    _, b, _, _      = runtime.Caller(0)
+    base_dir        = filepath.Dir(filepath.Dir(b))
+    TestsDefBaseDir = filepath.Join(base_dir, "test-run")
+)
+
+var TestEnvVars = map[string]string {
+    "x": "v_from_env_x",
+}
+
+func RunTests(t *testing.T, test_fn func(t *testing.T, dir string)) {
+    t.Cleanup(util.SupressLogForTest(t, logger))
+
+    logger.SetDebug(true)
+
+    dir_entries := util.ReadDir(TestsDefBaseDir)
+
+    for _, entry := range dir_entries {
+        if entry.IsDir() {
+            scenario := entry.Name()
+            dir := filepath.Join(TestsDefBaseDir, scenario)
+
+            ep := FindEnvVarsPrefix(dir)
+
+            defer ep.Clear()
+
+            ep.Clear()
+            for name, val := range TestEnvVars {
+                ep.Set(name, val)
+            }
+
+            test_fn(t, dir)
+        }
+    }
+}
 
 type EnvForPrefix string
 func (ep *EnvForPrefix) Clear() {

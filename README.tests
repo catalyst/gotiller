@@ -1,0 +1,9 @@
+If you want to test configurations similar to what is in test-run dirs,
+and those are not suitable to be comitted, you can run
+
+  go test -d /path/to/test/dir
+
+ie
+  go test
+is the same as
+  for d in test-run/*; do; go test -d $d; done
