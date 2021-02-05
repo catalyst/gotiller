@@ -1,0 +1,2 @@
+bin/deb/*   /usr/bin
+test-run/*  /usr/share/doc/gotiller/examples

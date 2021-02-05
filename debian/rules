@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+# export DH_VERBOSE = 1
+
+# see FEATURE AREAS in dpkg-buildflags(1)
+#export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+DEB_BUILD_OPTIONS := nostrip
+OUR_ARCH := $(shell dpkg --print-architecture)
+BUILD_DEPENDS := docker-ce:$(OUR_ARCH) | docker.io:$(OUR_ARCH)
+
+%:
+	dh $@
+
+# do not run here; buid runs test anyway
+override_dh_auto_test:
+
+# do not run
+override_dh_auto_build override_dh_makeshlibs:
+
+# To be removed with debhelper-compat 13
+override_dh_install:
+	cd bin && rm -f deb && ln -s $(DEB_TARGET_ARCH) deb
+	dh_install

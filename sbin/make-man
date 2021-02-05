@@ -1,0 +1,8 @@
+#!/bin/sh
+
+BIN_DIR=bin/amd64
+
+for f in `ls $BIN_DIR`
+do
+    help2man -n $f -s 1 -N --version-string=0.0 --no-discard-stderr bin/amd64/$f > docs/$f.1
+done
